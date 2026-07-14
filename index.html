@@ -44,22 +44,24 @@
 
             <aside class="lg:col-span-1 space-y-6">
                 <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
+                    <label for="db-select"
+                        class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                        Select Database
+                    </label>
+                    <select id="db-select"
+                        class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+
+                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
                     <label for="table-select"
                         class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
                         Select Handbook Table
                     </label>
                     <select id="table-select"
                         class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
-                        <option value="plates_imperial">Plates Imperial — JIS Standard</option>
-                        <option value="plates_metric">Plates Metric — JIS Standard</option>
-                        <option value="chequered_plates_mm">Chequered Plates — Metric</option>
-                        <option value="chequered_plates_inch">Chequered Plates — Inch</option>
-                        <option value="cold_rolled_sheets_weights">Cold Rolled Sheets — Weights</option>
-                        <option value="cold_rolled_standards">Cold Rolled — Standards Cross Ref</option>
-                        <option value="galvanised_sheet_weights">Galvanised Sheet — Weights (JIS G3302)</option>
-                        <option value="hot_dip_galvanised_standards">Hot Dip Galvanised — Standards Cross Ref</option>
-                        <option value="electrolytic_galvanised_weights">Electrolytic Galvanised — Weights</option>
-                        <option value="steel_specs">Steel Specifications — Mechanical Props</option>
+                        <!-- Populated dynamically based on DB -->
                     </select>
                 </div>
 
