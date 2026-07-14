@@ -1,33 +1,34 @@
 # Serverless Steel Handbook Query Engine
 
-Deployment: GitHub Pages
-Database: SQL.js (In-Memory SQLite)
-Driver: CDN-loaded sql-wasm.js / sql-wasm.wasm
+**Deployment:** GitHub Pages
+**Database:** SQL.js (In-Memory SQLite Multi-Database Engine)
+**Driver:** CDN-loaded sql-wasm.js / sql-wasm.wasm
+**Index Registry:** `database/databases.json`
 
 An ultra-lightweight, zero-cost, online-first database query engine built specifically to search, filter, and calculate technical specifications and physical weights from the Yick Hoe Steel Handbook (Pages 167-175).
 
-This architecture eliminates local browser CORS and sandboxing restrictions by utilizing public Content Delivery Networks (CDNs) for the heavy engine files (sql-wasm.js and sql-wasm.wasm), loading the compiled database directly from your GitHub Pages host, and offering visual source handbook reference page downloads.
+This expanded architecture features an in-browser index manager that reads a central JSON manifest on startup. This allows users to choose from various distinct steel databases on demand, which then mounts selected `.db` files into client memory dynamically.
 
-## How It Works (Online CDN & Assets Pipeline)
+## How It Works (Dynamic Multi-DB Pipeline)
 
-This streamlined workflow operates completely in-browser without requiring you to store massive binary engines in your repository:
+This modular pipeline allows the system to remain highly scalable:
 
 ```text
 +------------------ Client Browser ---------------+           +--- CDN & GitHub Pages ---+
 |                                                 |           |                          |
 |  [ User Interface (HTML5/CSS/JS) ]              |           |                          |
 |         │                                       |           |                          |
-|         ▼ (Loads runtime from CDN)              |           |                          |
-|   Fetches sql-wasm.js / wasm engine <───────────┼───────────┼── [ cdnjs.com (CDN) ]    |
-|         │                                       |           |                          |
-|         ▼ (Loads database on startup)           |           |                          |
-|   Reads database/plates.db <────────────┼───────────┼── [ GitHub Pages CDN ]   |
-|         │                                       |           | (Database/ folder)       |
-|         ▼ (Initializes Engine)                  |           |                          |
+|         ▼ (Pre-flight Load)                     |           |                          |
+|   Fetches databases.json registry <─────────────┼───────────┼── [ database/databases.json ]
+|         │                                       |           |   (Index of available DBs)
+|         ▼ (User selects target DB)              |           |                          |
+|   Fetches target .db file into RAM <────────────┼───────────┼── [ database/plates.db ] 
+|         │                                       |           |   [ database/specs.db ]  
+|         ▼ (Discovers schema via sqlite_master)  |           |                          |
 |  [ SQL.js Database Instance (RAM) ]             |           |                          |
 |         │                                       |           |                          |
 |         ▼ (User queries or views source)        |           |                          |
-|  Executes query or displays / downloads image <─┼───────────┼── [ page/ folder ]       |
+|  Executes query or displays reference source <──┼───────────┼── [ page/ folder ]       |
 |         │                                       |           |   (Source page PNGs)     |
 |         ▼ (Parses result / renders source)      |           |                          |
 |  [ HTML UI Updates (DOM Table & Page Viewer) ]  |           |                          |
@@ -35,36 +36,39 @@ This streamlined workflow operates completely in-browser without requiring you t
 +-------------------------------------------------+           +--------------------------+
 ```
 
-*   **External Engine Bootstrapping:** The index.html file loads the SQL.js library from cdnjs. When initializing, the script points directly to the CDN hosting of sql-wasm.wasm, initializing the WebAssembly SQLite interpreter on the client side.
-*   **Database Load:** On page initialization, the browser performs an asynchronous fetch request to grab the database from the `./Database/plates.db` path.
-*   **Binary Processing:** The database is parsed as an ArrayBuffer and loaded into memory.
-*   **Reference Page Engine:** When a user selects a table, the UI automatically links to the corresponding original handbook scan located inside the `page/` folder. This allows the user to cross-reference the raw scanned data directly on the screen or download it instantly as a high-quality PNG.
+*   **Manifest Pre-flight:** On startup, `index.html` reads `database/databases.json` to dynamically build cards or selection panels representing your different steel databases.
+*   **WebAssembly Bootstrapping:** The SQL.js runtime is fetched from cdnjs, loading `sql-wasm.wasm` inside the client environment.
+*   **Lazy DB Mount:** When a user clicks a database choice, the client fires a fetch request for that specific `.db` file path, loads the binary buffer into client RAM, and disposes of the previous database context to keep memory footprints low.
+*   **Dynamic Schema Discovery:** The application queries the `sqlite_master` table to automatically identify tables and columns, allowing the search UI to adapt dynamically regardless of unconfirmed schemas.
+*   **Visual Reference Sourcing:** The UI displays the associated handbook scan from the `page/` folder, with a dedicated button to download the original PNG page for offline viewing.
 
 ## Repository File Tree
 
-Your repository is structured cleanly with specific folders allocated for database files and source materials:
-
 ```text
-├── index.html               # Main user interface, query controller, and calculator
-├── Database/                # Directory containing all available .db files
-│   └── plates.db            # The compiled and optimized SQLite database file
-└── README.md                # Project documentation
+├── index.html                   # Dynamic multi-DB frontend UI and engine driver
+├── build_db.py                  # Python script parsing raw handbook data into SQLite
+├── database/                    # Directory containing database assets
+│   ├── databases.json           # Broadmost registry of all available databases
+│   ├── handbook_steel.db        # Core plates and sheets handbook database
+│   └── structural_sections.db   # (Optional example) Additional structural database
+├── page/                        # Directory containing original source page images
+│   ├── page_167.png             # Source image for Imperial Plates (Page 167)
+│   ├── page_168.png             # Source image for Metric Plates (Page 168)
+│   ├── page_172.png             # Source image for Cold Rolled Sheets (Page 172)
+│   └── page_175.png             # Source image for Galvanised Sheets (Page 175)
+└── README.md                    # Project documentation
 ```
 
 ## Deployment Steps
 
-Since browsers block binary loading on local file-system access (file://), this setup is optimized to be deployed directly onto GitHub Pages for user testing.
-
-1.  **Prepare the Database:** Ensure your optimized `plates.db` file is placed into the `Database/` folder.
-2.  **Commit to GitHub:** Push your `index.html`, `Database/`, and `README.md` to your GitHub Repository.
-3.  **Enable GitHub Pages:** In your repository, go to Settings -> Pages. Select your main branch and hit Save.
-4.  **Test Live:** Access your URL to search database properties.
+1.  **Compile Databases:** Run your Python compiler scripts to output your SQLite `.db` binaries, and save them in the `database/` folder.
+2.  **Edit Registry:** Ensure any new database files are registered in `database/databases.json` with matching reference images in the `page/` folder.
+3.  **Commit to GitHub:** Push your clean file tree online to your repository.
+4.  **Host Live:** Activate GitHub Pages under Repository Settings to view your serverless steel portal.
 
 ## Version Tracker
 
 - [x] v0.1.0 — CDN Architecture Transition, Database Configuration and Compiler Script (build_db.py)
 - [x] v0.1.1 — Integrated database/ and page/ folder structures to support static page downloads
 - [x] v0.1.2 — Removed raw database schemas pending final confirmation
-- [ ] v0.2.0 — Live index.html Interface with dynamic handbook source viewer and page downloads
-- [ ] v0.3.0 — Interactive table selectors and real-time search filters
-- [ ] v0.4.0 — Multiplying calculator tool to calculate batch weights dynamically
+- [x] v0.2.0 — Developed JSON dynamic manifest engine with multi-DB lazy loading and dynamic tables UI
