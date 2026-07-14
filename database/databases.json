@@ -2,11 +2,7 @@
   {
     "id": "handbook",
     "name": "Steel Handbook (Plates & Sheets)",
-    "file": "handbook_steel.db"
-  },
-  {
-    "id": "structural",
-    "name": "Structural Sections",
-    "file": "structural_sections.db"
+    "file": "handbook_steel.db",
+    "description": "Core technical specifications and weights for JIS Standard plates and sheets."
   }
 ]
