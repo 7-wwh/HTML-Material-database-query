@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serverless Steel Handbook Query Engine</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased">
+
+    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+
+        <header class="border-b border-slate-800 pb-6 mb-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                        Serverless Steel Handbook Query Engine
+                    </h1>
+                    <p class="text-sm text-slate-400 mt-1">
+                        Zero-cost client-side SQLite WASM execution via HTTP-VFS Range Requests (Pages 167-175).
+                    </p>
+                </div>
+                <div class="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-lg p-3 text-xs">
+                    <div>
+                        <span class="block text-slate-400 font-medium">Engine Status:</span>
+                        <span id="engine-status" class="inline-flex items-center text-amber-400 font-semibold">
+                            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse mr-1.5"></span>
+                            Initializing Worker...
+                        </span>
+                    </div>
+                    <div class="border-l border-slate-700 pl-3">
+                        <span class="block text-slate-400 font-medium">Query Latency:</span>
+                        <span id="query-time" class="text-emerald-400 font-mono font-bold">-- ms</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+
+            <aside class="lg:col-span-1 space-y-6">
+                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
+                    <label for="table-select"
+                        class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                        Select Handbook Table
+                    </label>
+                    <select id="table-select"
+                        class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+                        <option value="plates_imperial">Plates Imperial (JIS Standard)</option>
+                        <option value="plates_metric">Plates Metric (JIS Metric)</option>
+                        <option value="cold_rolled_sheets">Cold Rolled Sheets (JIS G3141)</option>
+                        <option value="galvanised_sheets">Galvanised Sheets (JIS G3302)</option>
+                    </select>
+                </div>
+
+                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm space-y-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Search Filters</h3>
+
+                    <div>
+                        <label for="thickness-filter" class="block text-sm text-slate-300 mb-1">Min Thickness
+                            (mm)</label>
+                        <input type="number" id="thickness-filter" step="0.1" min="0" placeholder="e.g., 1.5"
+                            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+                    </div>
+
+                    <div class="border-t border-slate-700 pt-4">
+                        <label for="quantity-multiplier" class="block text-sm text-slate-300 mb-1">Batch Count
+                            Multiplier</label>
+                        <input type="number" id="quantity-multiplier" min="1" value="1"
+                            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+                        <p class="text-[11px] text-slate-400 mt-1">Multiplies output unit weights by volumetric item
+                            counts.</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Raw SQL Console</span>
+                        <input type="checkbox" id="toggle-console"
+                            class="rounded border-slate-700 text-blue-600 focus:ring-0 bg-slate-950">
+                    </div>
+                    <textarea id="sql-console" disabled rows="4"
+                        class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 font-mono text-xs text-slate-400 focus:outline-none focus:border-blue-500 disabled:opacity-50 transition-opacity"
+                        placeholder="SELECT * FROM plates_metric WHERE thickness_mm > 10 LIMIT 5;"></textarea>
+                    <button id="run-sql-btn" disabled
+                        class="w-full mt-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white font-medium text-xs py-2 px-3 rounded-lg transition-colors">
+                        Execute Raw Query
+                    </button>
+                </div>
+            </aside>
+
+            <main class="lg:col-span-3 space-y-6">
+
+                <div
+                    class="bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-slate-400 flex items-center justify-between">
+                    <span class="truncate">
+                        <span class="text-blue-400">Active Query:</span>
+                        <span id="active-query-text">Initializing DB schema configurations...</span>
+                    </span>
+                </div>
+
+                <div class="bg-slate-800 border border-slate-700 rounded-xl shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto w-full max-h-[600px]">
+                        <table class="w-full border-collapse text-left text-sm text-slate-300">
+                            <thead
+                                class="bg-slate-900 text-slate-200 sticky top-0 border-b border-slate-700 z-10 font-medium">
+                                <tr id="table-headers">
+                                    <th class="px-4 py-3">No data loaded yet.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body" class="divide-y divide-slate-700 bg-slate-800/50">
+                                <tr>
+                                    <td class="px-4 py-8 text-center text-slate-500 font-medium">
+                                        Awaiting pipeline setup. Establishing virtual page mapping system.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <script src="main.js" type="module"></script>
+</body>
+
+</html>
