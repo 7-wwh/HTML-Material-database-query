@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Serverless Steel Handbook Query Engine</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
 
@@ -16,10 +17,11 @@
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                        Serverless Steel Handbook Query Engine
+                        Yick Hoe Steel Material Database Query
                     </h1>
                     <p class="text-sm text-slate-400 mt-1">
-                        Zero-cost client-side SQLite WASM execution via HTTP-VFS Range Requests (Pages 167-175).
+                        Zero-cost client-side SQLite WASM execution via HTTP-VFS Range Requests.
+                        JIS, KS, ASTM, BS, DIN steel standards — plates, sheets, chequered & specs.
                     </p>
                 </div>
                 <div class="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-lg p-3 text-xs">
@@ -48,10 +50,16 @@
                     </label>
                     <select id="table-select"
                         class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
-                        <option value="plates_imperial">Plates Imperial (JIS Standard)</option>
-                        <option value="plates_metric">Plates Metric (JIS Metric)</option>
-                        <option value="cold_rolled_sheets">Cold Rolled Sheets (JIS G3141)</option>
-                        <option value="galvanised_sheets">Galvanised Sheets (JIS G3302)</option>
+                        <option value="plates_imperial">Plates Imperial — JIS Standard</option>
+                        <option value="plates_metric">Plates Metric — JIS Standard</option>
+                        <option value="chequered_plates_mm">Chequered Plates — Metric</option>
+                        <option value="chequered_plates_inch">Chequered Plates — Inch</option>
+                        <option value="cold_rolled_sheets_weights">Cold Rolled Sheets — Weights</option>
+                        <option value="cold_rolled_standards">Cold Rolled — Standards Cross Ref</option>
+                        <option value="galvanised_sheet_weights">Galvanised Sheet — Weights (JIS G3302)</option>
+                        <option value="hot_dip_galvanised_standards">Hot Dip Galvanised — Standards Cross Ref</option>
+                        <option value="electrolytic_galvanised_weights">Electrolytic Galvanised — Weights</option>
+                        <option value="steel_specs">Steel Specifications — Mechanical Props</option>
                     </select>
                 </div>
 
