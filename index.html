@@ -29,7 +29,7 @@
                         <span class="block text-slate-400 font-medium">Engine Status:</span>
                         <span id="engine-status" class="inline-flex items-center text-amber-400 font-semibold">
                             <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse mr-1.5"></span>
-                            Initializing Worker...
+                            Initializing Setup...
                         </span>
                     </div>
                     <div class="border-l border-slate-700 pl-3">
@@ -43,45 +43,43 @@
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
 
             <aside class="lg:col-span-1 space-y-6">
-                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
+                <div class="bg-blue-950/40 border border-blue-800/60 rounded-xl p-4 shadow-sm">
                     <label for="db-select"
-                        class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                        Select Database
+                        class="block text-xs font-bold uppercase tracking-wider text-blue-400 mb-2">
+                        1. Select Database File
                     </label>
                     <select id="db-select"
-                        class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
-                        <!-- Populated dynamically -->
+                        class="w-full bg-slate-950 border border-blue-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+                        <option value="">Loading registries...</option>
                     </select>
+                    <p id="db-description" class="text-[11px] text-slate-400 mt-2 italic"></p>
                 </div>
 
                 <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
                     <label for="table-select"
                         class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                        Select Handbook Table
+                        2. Select Handbook Table
                     </label>
-                    <select id="table-select"
-                        class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
-                        <!-- Populated dynamically based on DB -->
+                    <select id="table-select" disabled
+                        class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50">
+                        <option value="">Choose a database first</option>
                     </select>
                 </div>
 
                 <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm space-y-4">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Search Filters</h3>
 
-                    <div>
-                        <label for="thickness-filter" class="block text-sm text-slate-300 mb-1">Min Thickness
-                            (mm)</label>
+                    <div id="thickness-filter-container" style="display: none;">
+                        <label for="thickness-filter" class="block text-sm text-slate-300 mb-1">Min Thickness (mm)</label>
                         <input type="number" id="thickness-filter" step="0.1" min="0" placeholder="e.g., 1.5"
                             class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
                     </div>
 
                     <div class="border-t border-slate-700 pt-4">
-                        <label for="quantity-multiplier" class="block text-sm text-slate-300 mb-1">Batch Count
-                            Multiplier</label>
+                        <label for="quantity-multiplier" class="block text-sm text-slate-300 mb-1">Batch Count Multiplier</label>
                         <input type="number" id="quantity-multiplier" min="1" value="1"
                             class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
-                        <p class="text-[11px] text-slate-400 mt-1">Multiplies output unit weights by volumetric item
-                            counts.</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Multiplies output unit weights by volumetric item counts.</p>
                     </div>
                 </div>
 
@@ -93,7 +91,7 @@
                     </div>
                     <textarea id="sql-console" disabled rows="4"
                         class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 font-mono text-xs text-slate-400 focus:outline-none focus:border-blue-500 disabled:opacity-50 transition-opacity"
-                        placeholder="SELECT * FROM plates_metric WHERE thickness_mm > 10 LIMIT 5;"></textarea>
+                        placeholder="SELECT * FROM table LIMIT 5;"></textarea>
                     <button id="run-sql-btn" disabled
                         class="w-full mt-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white font-medium text-xs py-2 px-3 rounded-lg transition-colors">
                         Execute Raw Query
@@ -103,19 +101,17 @@
 
             <main class="lg:col-span-3 space-y-6">
 
-                <div
-                    class="bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-slate-400 flex items-center justify-between">
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-slate-400 flex items-center justify-between">
                     <span class="truncate">
                         <span class="text-blue-400">Active Query:</span>
-                        <span id="active-query-text">Initializing DB schema configurations...</span>
+                        <span id="active-query-text">Awaiting selection manifest maps...</span>
                     </span>
                 </div>
 
                 <div class="bg-slate-800 border border-slate-700 rounded-xl shadow-sm overflow-hidden">
                     <div class="overflow-x-auto w-full max-h-[600px]">
                         <table class="w-full border-collapse text-left text-sm text-slate-300">
-                            <thead
-                                class="bg-slate-900 text-slate-200 sticky top-0 border-b border-slate-700 z-10 font-medium">
+                            <thead class="bg-slate-900 text-slate-200 sticky top-0 border-b border-slate-700 z-10 font-medium">
                                 <tr id="table-headers">
                                     <th class="px-4 py-3">No data loaded yet.</th>
                                 </tr>
@@ -123,7 +119,7 @@
                             <tbody id="table-body" class="divide-y divide-slate-700 bg-slate-800/50">
                                 <tr>
                                     <td class="px-4 py-8 text-center text-slate-500 font-medium">
-                                        Awaiting pipeline setup. Establishing virtual page mapping system.
+                                        Please choose a database file from the panel to start the virtual table rendering pipeline.
                                     </td>
                                 </tr>
                             </tbody>
@@ -138,4 +134,4 @@
     <script src="main.js" type="module"></script>
 </body>
 
-</html>
+</html>',filePath:
