@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,128 +9,236 @@
 </head>
 
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased">
+<div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
 
-    <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-
-        <header class="border-b border-slate-800 pb-6 mb-8">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                        Yick Hoe Steel Material Database Query
-                    </h1>
-                    <p class="text-sm text-slate-400 mt-1">
-                        Zero-cost client-side SQLite WASM execution via HTTP-VFS Range Requests.
-                        JIS, KS, ASTM, BS, DIN steel standards — plates, sheets, chequered & specs.
-                    </p>
-                </div>
-                <div class="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-lg p-3 text-xs">
-                    <div>
-                        <span class="block text-slate-400 font-medium">Engine Status:</span>
-                        <span id="engine-status" class="inline-flex items-center text-amber-400 font-semibold">
-                            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse mr-1.5"></span>
-                            Initializing Setup...
-                        </span>
-                    </div>
-                    <div class="border-l border-slate-700 pl-3">
-                        <span class="block text-slate-400 font-medium">Query Latency:</span>
-                        <span id="query-time" class="text-emerald-400 font-mono font-bold">-- ms</span>
-                    </div>
-                </div>
+    <!-- ── Header (always visible) ── -->
+    <header class="border-b border-slate-800 pb-6 mb-8">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                    Yick Hoe Steel Material Database Query
+                </h1>
+                <p class="text-sm text-slate-400 mt-1">
+                    JIS · KS · ASTM · BS · DIN — plates, sheets, chequered &amp; sections
+                </p>
             </div>
-        </header>
-
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-
-            <aside class="lg:col-span-1 space-y-6">
-                <div class="bg-blue-950/40 border border-blue-800/60 rounded-xl p-4 shadow-sm">
-                    <label for="db-select"
-                        class="block text-xs font-bold uppercase tracking-wider text-blue-400 mb-2">
-                        1. Select Database File
-                    </label>
-                    <select id="db-select"
-                        class="w-full bg-slate-950 border border-blue-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
-                        <option value="">Loading registries...</option>
-                    </select>
-                    <p id="db-description" class="text-[11px] text-slate-400 mt-2 italic"></p>
-                </div>
-
-                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
-                    <label for="table-select"
-                        class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                        2. Select Handbook Table
-                    </label>
-                    <select id="table-select" disabled
-                        class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50">
-                        <option value="">Choose a database first</option>
-                    </select>
-                </div>
-
-                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm space-y-4">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Search Filters</h3>
-
-                    <div id="thickness-filter-container" style="display: none;">
-                        <label for="thickness-filter" class="block text-sm text-slate-300 mb-1">Min Thickness (mm)</label>
-                        <input type="number" id="thickness-filter" step="0.1" min="0" placeholder="e.g., 1.5"
-                            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
-                    </div>
-
-                    <div class="border-t border-slate-700 pt-4">
-                        <label for="quantity-multiplier" class="block text-sm text-slate-300 mb-1">Batch Count Multiplier</label>
-                        <input type="number" id="quantity-multiplier" min="1" value="1"
-                            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
-                        <p class="text-[11px] text-slate-400 mt-1">Multiplies output unit weights by volumetric item counts.</p>
-                    </div>
-                </div>
-
-                <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Raw SQL Console</span>
-                        <input type="checkbox" id="toggle-console"
-                            class="rounded border-slate-700 text-blue-600 focus:ring-0 bg-slate-950">
-                    </div>
-                    <textarea id="sql-console" disabled rows="4"
-                        class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 font-mono text-xs text-slate-400 focus:outline-none focus:border-blue-500 disabled:opacity-50 transition-opacity"
-                        placeholder="SELECT * FROM table LIMIT 5;"></textarea>
-                    <button id="run-sql-btn" disabled
-                        class="w-full mt-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white font-medium text-xs py-2 px-3 rounded-lg transition-colors">
-                        Execute Raw Query
-                    </button>
-                </div>
-            </aside>
-
-            <main class="lg:col-span-3 space-y-6">
-
-                <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-slate-400 flex items-center justify-between">
-                    <span class="truncate">
-                        <span class="text-blue-400">Active Query:</span>
-                        <span id="active-query-text">Awaiting selection manifest maps...</span>
+            <div class="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-lg p-3 text-xs">
+                <div>
+                    <span class="block text-slate-400 font-medium">Engine status</span>
+                    <span id="engine-status" class="inline-flex items-center text-amber-400 font-semibold">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse mr-1.5"></span>
+                        Initializing…
                     </span>
                 </div>
-
-                <div class="bg-slate-800 border border-slate-700 rounded-xl shadow-sm overflow-hidden">
-                    <div class="overflow-x-auto w-full max-h-[600px]">
-                        <table class="w-full border-collapse text-left text-sm text-slate-300">
-                            <thead class="bg-slate-900 text-slate-200 sticky top-0 border-b border-slate-700 z-10 font-medium">
-                                <tr id="table-headers">
-                                    <th class="px-4 py-3">No data loaded yet.</th>
-                                </tr>
-                            </thead>
-                            <tbody id="table-body" class="divide-y divide-slate-700 bg-slate-800/50">
-                                <tr>
-                                    <td class="px-4 py-8 text-center text-slate-500 font-medium">
-                                        Please choose a database file from the panel to start the virtual table rendering pipeline.
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="border-l border-slate-700 pl-3">
+                    <span class="block text-slate-400 font-medium">Query latency</span>
+                    <span id="query-time" class="text-emerald-400 font-mono font-bold">-- ms</span>
                 </div>
+            </div>
+        </div>
+    </header>
 
-            </main>
+    <!-- ── Breadcrumb (shown on sub / table views) ── -->
+    <!--
+        data-depth="0" → hidden
+        data-depth="1" → show: Home > Category
+        data-depth="2" → show: Home > Category > DB
+    -->
+    <nav id="breadcrumb" data-depth="0" class="mb-6 text-sm text-slate-400
+        [&[data-depth='0']]:hidden flex items-center gap-2 flex-wrap">
+
+        <button id="btn-back-home"
+            class="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors">
+            ← All categories
+        </button>
+
+        <span class="[nav[data-depth='1']_&]:hidden text-slate-600">›</span>
+
+        <span id="bc-category" class="
+            [[data-depth='2']_&]:text-blue-400
+            [[data-depth='2']_&]:cursor-pointer
+            [[data-depth='2']_&]:hover:text-blue-300
+        "></span>
+
+        <!-- depth-2 only extras -->
+        <span class="[[data-depth='1']_&]:hidden text-slate-600">›</span>
+        <button id="btn-back-sub"
+            class="[[data-depth='1']_&]:hidden text-slate-600 hover:text-slate-300 transition-colors cursor-default">
+        </button>
+        <span id="bc-db" class="[[data-depth='1']_&]:hidden text-slate-200 font-medium"></span>
+    </nav>
+
+    <!-- ════════════════════════════════════════════════════
+         VIEW 1 — Landing: radial category wheel
+    ═════════════════════════════════════════════════════ -->
+    <div id="landing-view" class="flex flex-col items-center gap-6" style="display:flex;">
+
+        <div class="relative" style="width:360px; height:360px;">
+            <canvas id="wheel-canvas" width="360" height="360"
+                class="cursor-pointer absolute top-0 left-0"></canvas>
+
+            <!-- Centre disc -->
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+                        w-28 h-28 rounded-full bg-slate-800 border border-slate-600
+                        flex flex-col items-center justify-center text-center pointer-events-none">
+                <span id="wheel-center-label" class="text-xs text-slate-400 px-2 leading-tight">
+                    Select a category
+                </span>
+                <span id="wheel-center-name" class="text-sm font-semibold text-slate-100 px-2 mt-0.5 leading-tight"></span>
+            </div>
+        </div>
+
+        <p class="text-xs text-slate-500">Hover to preview · Click to select</p>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════
+         VIEW 2 — Subcategory cards
+    ═════════════════════════════════════════════════════ -->
+    <div id="subcategory-view" class="flex flex-col gap-4" style="display:none;">
+        <h2 id="sub-header" class="text-lg font-semibold text-white"></h2>
+        <div id="sub-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <!-- populated by JS -->
         </div>
     </div>
 
-    <script src="main.js" type="module"></script>
-</body>
+    <!-- ════════════════════════════════════════════════════
+         VIEW 3 — Data table
+    ═════════════════════════════════════════════════════ -->
+    <div id="table-view" class="grid grid-cols-1 lg:grid-cols-4 gap-8" style="display:none;">
 
-</html>',filePath:
+        <!-- Sidebar controls -->
+        <aside class="lg:col-span-1 space-y-4">
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
+                <p id="db-description" class="text-xs text-slate-400 italic"></p>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
+                <label for="table-select"
+                    class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                    Table
+                </label>
+                <select id="table-select" disabled
+                    class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200
+                           focus:outline-none focus:border-blue-500 disabled:opacity-50">
+                    <option>Loading…</option>
+                </select>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm space-y-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Filters</h3>
+
+                <div id="thickness-filter-container" style="display:none;">
+                    <label for="thickness-filter" class="block text-sm text-slate-300 mb-1">
+                        Min thickness (mm)
+                    </label>
+                    <input type="number" id="thickness-filter" step="0.1" min="0" placeholder="e.g. 1.5"
+                        class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-200
+                               focus:outline-none focus:border-blue-500">
+                </div>
+
+                <div class="border-t border-slate-700 pt-4">
+                    <label for="quantity-multiplier" class="block text-sm text-slate-300 mb-1">
+                        Batch multiplier
+                    </label>
+                    <input type="number" id="quantity-multiplier" min="1" value="1"
+                        class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-200
+                               focus:outline-none focus:border-blue-500">
+                    <p class="text-[11px] text-slate-400 mt-1">Multiplies unit weights by quantity.</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Raw SQL</span>
+                    <input type="checkbox" id="toggle-console"
+                        class="rounded border-slate-700 text-blue-600 focus:ring-0 bg-slate-950">
+                </div>
+                <textarea id="sql-console" disabled rows="4"
+                    class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 font-mono text-xs
+                           text-slate-400 focus:outline-none focus:border-blue-500 disabled:opacity-50
+                           transition-opacity"
+                    placeholder="SELECT * FROM table LIMIT 5;"></textarea>
+                <button id="run-sql-btn" disabled
+                    class="w-full mt-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white
+                           font-medium text-xs py-2 px-3 rounded-lg transition-colors">
+                    Execute
+                </button>
+            </div>
+        </aside>
+
+        <!-- Results panel -->
+        <main class="lg:col-span-3 space-y-4">
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-slate-400">
+                <span class="text-blue-400">Active query: </span>
+                <span id="active-query-text">—</span>
+            </div>
+
+            <div class="bg-slate-800 border border-slate-700 rounded-xl shadow-sm overflow-hidden">
+                <div class="overflow-x-auto w-full max-h-[600px]">
+                    <table class="w-full border-collapse text-left text-sm text-slate-300">
+                        <thead class="bg-slate-900 text-slate-200 sticky top-0 border-b border-slate-700 z-10">
+                            <tr id="table-headers">
+                                <th class="px-4 py-3">No data loaded yet.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="divide-y divide-slate-700 bg-slate-800/50">
+                            <tr>
+                                <td class="px-4 py-8 text-center text-slate-500 font-medium">
+                                    Select a database from the category wheel to begin.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+</div>
+
+<!-- Subcategory card styles (too dynamic for Tailwind JIT to catch) -->
+<style>
+.sub-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: rgb(30 41 59 / 0.8);   /* slate-800/80 */
+    border: 1px solid rgb(51 65 85);    /* slate-700 */
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, background 0.15s;
+    width: 100%;
+}
+.sub-card:hover {
+    border-color: rgb(59 130 246);      /* blue-500 */
+    background: rgb(30 41 59);
+}
+.sub-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgb(226 232 240);            /* slate-200 */
+}
+.sub-card-desc {
+    font-size: 11px;
+    color: rgb(100 116 139);            /* slate-500 */
+    line-height: 1.4;
+}
+.sub-card-file {
+    font-size: 10px;
+    font-family: monospace;
+    color: rgb(71 85 105);              /* slate-600 */
+    margin-top: 2px;
+}
+
+/* breadcrumb depth visibility */
+nav[data-depth='1'] #btn-back-sub,
+nav[data-depth='1'] #bc-db,
+nav[data-depth='1'] .depth2-sep { display: none; }
+</style>
+
+<script src="main.js" type="module"></script>
+</body>
+</html>

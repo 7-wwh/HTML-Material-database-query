@@ -1,8 +1,228 @@
-[
-  {
-    "id": "handbook",
-    "name": "Steel Handbook (Plates & Sheets)",
-    "file": "handbook_steel.db",
-    "description": "Core technical specifications and weights for JIS Standard plates and sheets."
-  }
-]
+{
+  "documentMetadata": {
+    "fileName": "YH_HandBook.pdf",
+    "title": "Yick Hoe Structural Steel Handbook"
+  },
+  "catalog": [
+    {
+      "category": "General Information",
+      "items": [
+        {
+          "name": "Our Company",
+          "page": 3,
+          "keywords": ["company profile", "locations", "contact", "sandakan", "lahad datu"]
+        },
+        {
+          "name": "Our Facilities & Services",
+          "page": 4,
+          "keywords": ["facilities", "services", "coil servicing center", "slitting machine", "shearing machine", "GI purlin manufacturing"]
+        },
+        {
+          "name": "Explanatory Notes",
+          "page": 6,
+          "keywords": ["material", "sections", "dimensional units", "comparable specifications", "chemical analysis", "available specifications"]
+        }
+      ]
+    },
+    {
+      "category": "Mild Steel Products",
+      "items": [
+        {
+          "name": "I-Beams",
+          "page": 13,
+          "keywords": ["i-beams", "design formulae", "geometrical properties", "shear stress", "deflection", "working stresses", "safe loads"]
+        },
+        {
+          "name": "Universal Beams and Columns",
+          "page": 34,
+          "keywords": ["universal beams", "universal columns", "UB", "UC", "safe loads", "grade 43 steel"]
+        },
+        {
+          "name": "Light Beams and Joists",
+          "page": 48,
+          "keywords": ["light beams", "joists", "dimensions", "properties"]
+        },
+        {
+          "name": "Bearing Piles",
+          "page": 52,
+          "keywords": ["bearing piles", "dimensions", "properties"]
+        },
+        {
+          "name": "Steel Piles",
+          "page": 56,
+          "keywords": ["steel piles", "sheet piling", "u-type", "z-type", "straight web-type", "Larssen", "Frodingham"]
+        },
+        {
+          "name": "API Pipes ERW & Seamless Pipes",
+          "page": 66,
+          "keywords": ["API pipes", "ERW pipes", "seamless pipes", "hydrostatic test pressure", "mechanical specifications", "chemical specifications", "tolerances"]
+        },
+        {
+          "name": "Cold Formed Hollow Sections",
+          "page": 86,
+          "keywords": ["cold formed", "hollow sections", "square hollow sections", "rectangular hollow sections", "metric units", "imperial units"]
+        },
+        {
+          "name": "Hot Formed Hollow Sections",
+          "page": 100,
+          "keywords": ["hot formed", "hollow sections", "square hollow sections", "rectangular hollow sections", "circular hollow sections"]
+        },
+        {
+          "name": "Pipes",
+          "page": 112,
+          "keywords": ["pipes", "welded steel pipes", "carbon steel pipes", "scaffolding pipes", "BS 1387"]
+        },
+        {
+          "name": "Channels",
+          "page": 126,
+          "keywords": ["channels", "plain channels", "lipped channels", "DIN 1026 channels", "u-channels", "c-channel"]
+        },
+        {
+          "name": "Z-Purlins",
+          "page": 135,
+          "keywords": ["z-purlins", "high-tensile galvanised purlins", "roofing supports"]
+        },
+        {
+          "name": "C-Purlins",
+          "page": 137,
+          "keywords": ["c-purlins", "high-tensile galvanised purlins", "purlin selection tables"]
+        },
+        {
+          "name": "Angles",
+          "page": 142,
+          "keywords": ["angles", "equal angles", "unequal angles", "inverted angles"]
+        },
+        {
+          "name": "Bars",
+          "page": 152,
+          "keywords": ["bars", "flat bars", "bulb flats", "square bars", "deformed bars", "round bars"]
+        },
+        {
+          "name": "Plates",
+          "page": 158,
+          "keywords": ["plates", "chequered plates", "floor plates", "cold rolled coils", "cold rolled sheets", "electrolytic galvanised", "hot dip galvanised"]
+        },
+        {
+          "name": "Galvanised Serrated Gratings",
+          "page": 176,
+          "keywords": ["gratings", "galvanised serrated gratings", "loading table"]
+        },
+        {
+          "name": "Expanded Metal",
+          "page": 177,
+          "keywords": ["expanded metal", "mesh", "walkways", "screens"]
+        },
+        {
+          "name": "Wrought Steel Butt Welding Fittings",
+          "page": 180,
+          "keywords": ["fittings", "wrought steel", "butt welding", "elbows", "tees", "reducers", "returns", "stub ends", "caps"]
+        },
+        {
+          "name": "Flanges",
+          "page": 187,
+          "keywords": ["flanges", "JIS flanges", "ANSI flanges", "slip-on flanges", "welding neck flanges", "blind flanges"]
+        }
+      ]
+    },
+    {
+      "category": "Stainless Steel Products",
+      "items": [
+        {
+          "name": "Stainless Steel Products - General Information",
+          "page": 206,
+          "keywords": ["stainless steel", "general information", "corrosion resistance data", "martensitic", "ferritic", "austenitic"]
+        },
+        {
+          "name": "Stainless Steel Coils, Sheets & Plates",
+          "page": 209,
+          "keywords": ["stainless steel coils", "stainless steel sheets", "stainless steel plates", "chemical composition", "mechanical properties"]
+        },
+        {
+          "name": "Stainless Steel Angles & Flats",
+          "page": 215,
+          "keywords": ["stainless steel angles", "stainless steel flats"]
+        },
+        {
+          "name": "Stainless Steel Bars",
+          "page": 219,
+          "keywords": ["stainless steel bars", "round bars", "hexagon bars", "square bars"]
+        },
+        {
+          "name": "Stainless Steel Welded Channels",
+          "page": 224,
+          "keywords": ["stainless steel welded channels"]
+        },
+        {
+          "name": "Stainless Steel Welded Tubings",
+          "page": 225,
+          "keywords": ["stainless steel welded tubings", "round tubing", "square tubing", "rectangular tubing", "instrumentation tube"]
+        },
+        {
+          "name": "Stainless Steel Pipes",
+          "page": 230,
+          "keywords": ["stainless steel pipes", "seamless pipes", "welded pipes", "ASTM A312"]
+        },
+        {
+          "name": "Stainless Steel Fittings",
+          "page": 234,
+          "keywords": ["stainless steel fittings", "elbows", "returns", "reducers", "tees", "stub ends", "caps"]
+        }
+      ]
+    },
+    {
+      "category": "Alloy & Machinery Steel Products",
+      "items": [
+        {
+          "name": "Harden & Tempered Steel - Carbon Steel",
+          "page": 248,
+          "keywords": ["harden steel", "tempered steel", "carbon steel", "machinery steel"]
+        },
+        {
+          "name": "Pre-Harden & Tempered Alloy Steel",
+          "page": 249,
+          "keywords": ["pre-harden steel", "tempered alloy steel", "machinery steel"]
+        },
+        {
+          "name": "Cold Finished Steel Bar",
+          "page": 251,
+          "keywords": ["cold finished steel bar", "free cutting steel"]
+        }
+      ]
+    },
+    {
+      "category": "Non-Ferrous Metals",
+      "items": [
+        {
+          "name": "Copper",
+          "page": 254,
+          "keywords": ["copper", "round bars", "hexagon bars", "square bars", "flat bars"]
+        },
+        {
+          "name": "Brass",
+          "page": 256,
+          "keywords": ["brass", "round bars", "hexagon bars", "square bars", "flat bars", "brass sheets"]
+        },
+        {
+          "name": "Bronze",
+          "page": 259,
+          "keywords": ["bronze", "continuous casting", "solid bronze", "cored bronze", "stock sizes"]
+        }
+      ]
+    },
+    {
+      "category": "Appendix",
+      "items": [
+        {
+          "name": "Gauge Table",
+          "page": 264,
+          "keywords": ["gauge table", "SWG", "BWG", "BG", "USG"]
+        },
+        {
+          "name": "Conversion Factors",
+          "page": 265,
+          "keywords": ["conversion factors", "linear measure", "square measure", "cube measure", "weight", "energy"]
+        }
+      ]
+    }
+  ]
+}
