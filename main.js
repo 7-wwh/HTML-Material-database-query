@@ -44,9 +44,23 @@ const el = {
 async function bootApp() {
     updateEngineStatus('Loading registry…', 'amber');
     try {
+        if (window.location.protocol === 'file:') {
+            throw new Error(
+                'This page is being opened from the local file system. ' +
+                'Serve the project over HTTP so fetch() can load database/databases.json and the .db files.'
+            );
+        }
+
         const resp = await fetch('./database/databases.json');
         if (!resp.ok) throw new Error('Could not load database/databases.json');
-        databaseRegistry = await resp.json();
+        const manifest = await resp.json();
+        databaseRegistry = Array.isArray(manifest)
+            ? manifest
+            : (Array.isArray(manifest.catalog) ? manifest.catalog : []);
+
+        if (!databaseRegistry.length) {
+            throw new Error('database/databases.json does not contain a catalog array.');
+        }
 
         // Build category map from { category, items[] } structure
         categoryMap = {};
@@ -72,6 +86,7 @@ async function bootApp() {
 
     } catch (err) {
         updateEngineStatus('Boot failure', 'red');
+        renderError(err.message);
         console.error(err);
     }
 }
