@@ -1,948 +1,444 @@
 import pdfplumber
+import camelot
 import sqlite3
-import re
+import pandas as pd
 import os
 import sys
+import re
+import json
+import warnings
+import math
+import hashlib
 from datetime import datetime
 from tqdm import tqdm
+import logging
+from PIL import Image
+
+# Suppress noisy external library warnings
+warnings.filterwarnings("ignore")
+logging.getLogger("pdfminer").setLevel(logging.WARNING)
 
 # =====================================================================
-# ENHANCED STEEL TAXONOMY & CLASSIFICATION CONFIGURATION
+# MACHINE LEARNING & ML PIPELINE DEPENDENCIES
 # =====================================================================
+try:
+    from sentence_transformers import SentenceTransformer, util
+    HAS_SENTENCE_TRANSFORMERS = True
+except ImportError:
+    HAS_SENTENCE_TRANSFORMERS = False
 
-TAXONOMY_RULES = [
-    # --- STAINLESS STEEL SECTION ---
-    {
-        "material": "Stainless Steel",
-        "category": "Stainless Pipes & Tubings",
-        "subcategory": "Stainless Steel Pipes",
-        "patterns": [r"stainless\s+steel\s+pipes", r"tp\s*304", r"tp\s*316", r"b36\.19"],
-        "table_prefix": "ss_pipe"
-    },
-    {
-        "material": "Stainless Steel",
-        "category": "Stainless Pipes & Tubings",
-        "subcategory": "Stainless Steel Welded Tubings",
-        "patterns": [r"stainless\s+steel\s+welded\s+tubings?", r"round\s+tubing", r"stkm\s*11a"],
-        "table_prefix": "ss_tubing"
-    },
-    {
-        "material": "Stainless Steel",
-        "category": "Stainless Angles & Flats",
-        "subcategory": "Stainless Steel Angles",
-        "patterns": [r"stainless\s+steel\s+angles", r"angles?\s+and\s+flats"],
-        "table_prefix": "ss_angle"
-    },
-    {
-        "material": "Stainless Steel",
-        "category": "Stainless Bars",
-        "subcategory": "Stainless Steel Bars (Round/Hex/Square)",
-        "patterns": [r"stainless\s+steel\s+bars", r"hexagon\s+bars", r"square\s+bars", r"ss\s+bars"],
-        "table_prefix": "ss_bar"
-    },
-    {
-        "material": "Stainless Steel",
-        "category": "Stainless Channels",
-        "subcategory": "Stainless Steel Welded Channels",
-        "patterns": [r"stainless\s+steel\s+welded\s+channels"],
-        "table_prefix": "ss_channel"
-    },
-    {
-        "material": "Stainless Steel",
-        "category": "Stainless Fittings",
-        "subcategory": "Stainless Steel Fittings & Stub Ends",
-        "patterns": [r"stainless\s+steel\s+fittings", r"stub\s+ends", r"long\s+radius\s+elbows"],
-        "table_prefix": "ss_fitting"
-    },
+try:
+    import chromadb
+    HAS_CHROMADB = True
+except ImportError:
+    HAS_CHROMADB = False
 
-    # --- MACHINERY / ALLOY STEEL ---
-    {
-        "material": "Alloy Steel",
-        "category": "Machinery Steel",
-        "subcategory": "Harden & Tempered Carbon Steel",
-        "patterns": [r"carbon\s+steel\s+ks\s+d3752", r"s10c", r"s45c", r"harden\s+&\s+tempered\s+steel"],
-        "table_prefix": "alloy_carbon_tempered"
-    },
-    {
-        "material": "Alloy Steel",
-        "category": "Machinery Steel",
-        "subcategory": "Pre-Harden & Tempered Alloy Steel",
-        "patterns": [r"alloy\s+steel\s+ks\s+d3707", r"scm440", r"sncm439", r"pre-harden"],
-        "table_prefix": "alloy_tempered"
-    },
-    {
-        "material": "Alloy Steel",
-        "category": "Machinery Steel",
-        "subcategory": "Cold Finished Steel Bars",
-        "patterns": [r"cold\s+finished\s+steel\s+bar", r"free\s+cutting\s+steel", r"sum22"],
-        "table_prefix": "alloy_cold_finished"
-    },
+# Fallbacks and existing dependencies...
+try:
+    import ocrmypdf
+    HAS_OCRMYPDF = True
+except ImportError:
+    HAS_OCRMYPDF = False
 
-    # --- MILD STEEL - BEAMS & COLUMNS ---
-    {
-        "material": "Mild Steel",
-        "category": "Beams & Columns",
-        "subcategory": "Standard I-Beams",
-        "patterns": [r"\bi\s*-\s*beams\b", r"\bibeams?\b", r"design\s+formulae\s+for\s+beams", r"stress\s+and\s+deflection\s+of\s+beams"],
-        "table_prefix": "beam_standard_ibeam"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Beams & Columns",
-        "subcategory": "Universal Beams (UB)",
-        "patterns": [r"universal\s+beams", r"\bub\b", r"safe\s+loads\s+for\s+grade\s+43"],
-        "table_prefix": "beam_universal"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Beams & Columns",
-        "subcategory": "Universal Columns (UC)",
-        "patterns": [r"universal\s+columns", r"\buc\b"],
-        "table_prefix": "column_universal"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Beams & Columns",
-        "subcategory": "Light Beams & Joists",
-        "patterns": [r"light\s+beams\s+and\s+joists", r"joists?\b", r"r\s*s\s*j\b"],
-        "table_prefix": "beam_joist"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Beams & Columns",
-        "subcategory": "Bearing Piles",
-        "patterns": [r"bearing\s+piles", r"\b8\s*x\s*8\s+bearing\b", r"\b12\s*x\s*12\s+bearing\b"],
-        "table_prefix": "piles_bearing"
-    },
+try:
+    import pytesseract
+    HAS_TESSERACT = True
+except ImportError:
+    HAS_TESSERACT = False
 
-    # --- MILD STEEL - PILES ---
-    {
-        "material": "Mild Steel",
-        "category": "Piles",
-        "subcategory": "Steel Sheet Piles (Larssen/Frodingham)",
-        "patterns": [r"sheet\s+piles?", r"larssen", r"frodingham", r"interlocking\s+sections"],
-        "table_prefix": "piles_sheet"
-    },
+# =====================================================================
+# ML MODELS INITIALIZATION
+# =====================================================================
+# We load a lightweight embedding model for taxonomy classification and semantic search
+if HAS_SENTENCE_TRANSFORMERS:
+    print("[ML Pipeline] Loading SentenceTransformer model (all-MiniLM-L6-v2)...")
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+else:
+    model = None
 
-    # --- MILD STEEL - PIPES & HOLLOW SECTIONS ---
-    {
-        "material": "Mild Steel",
-        "category": "Pipes & Hollow Sections",
-        "subcategory": "API & Seamless Pipes",
-        "patterns": [r"api\s+pipes", r"seamless\s+pipes", r"api\s+mechanical", r"line\s+pipe"],
-        "table_prefix": "pipe_api_seamless"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Pipes & Hollow Sections",
-        "subcategory": "Cold Formed Hollow Sections",
-        "patterns": [r"cold\s+formed\s+hollow\s+sections?", r"stkr-41", r"stkr-50"],
-        "table_prefix": "hollow_cold_formed"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Pipes & Hollow Sections",
-        "subcategory": "Hot Formed Hollow Sections",
-        "patterns": [r"hot\s+formed\s+hollow\s+sections?", r"bs\s+4848\s+part\s+2"],
-        "table_prefix": "hollow_hot_formed"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Pipes & Hollow Sections",
-        "subcategory": "General Pipes (SGP / Scaffolding / Conduit)",
-        "patterns": [r"\bpipes?\b", r"welded\s+steel\s+pipes", r"conduit", r"scaffolding", r"sgp\b"],
-        "table_prefix": "pipe_general"
-    },
+# Initialize Vector Database
+if HAS_CHROMADB:
+    chroma_client = chromadb.PersistentClient(path="./chroma_db")
+    vector_collection = chroma_client.get_or_create_collection(name="steel_semantic_search")
+else:
+    vector_collection = None
 
-    # --- MILD STEEL - CHANNELS ---
-    {
-        "material": "Mild Steel",
-        "category": "Channels & Purlins",
-        "subcategory": "Mild Steel Channels",
-        "patterns": [r"plain\s+channels", r"lipped\s+channels", r"din\s+1026\s+channels", r"u-channels", r"g\s+3350"],
-        "table_prefix": "channel_standard"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Channels & Purlins",
-        "subcategory": "Z-Purlins",
-        "patterns": [r"z-purlins?", r"high-tensile\s+galvanised\s+z-purlins?", r"\bbsz\b"],
-        "table_prefix": "purlin_z"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Channels & Purlins",
-        "subcategory": "C-Purlins",
-        "patterns": [r"c-purlins?", r"high-tensile\s+galvanised\s+c-purlins?", r"\bbsc\b"],
-        "table_prefix": "purlin_c"
-    },
+# =====================================================================
+# TAXONOMY (NOW POWERED BY DENSE EMBEDDINGS)
+# =====================================================================
+TAXONOMY_TERMS = {
+    "Stainless Steel": "stainless steel austenitic martensitic tp304 tp316 sus304 a240 corrosion resistant",
+    "Alloy Steel": "alloy steel machinery carbon scm440 sncm439 s45c harden tempered high strength",
+    "Mild Steel": "mild steel structural carbon astm a36 s275 s355 universal beam column hollow section rebar",
+    "Non-Ferrous": "copper brass bronze aluminum zinc lead continuous casting non-magnetic"
+}
 
-    # --- MILD STEEL - ANGLES ---
-    {
-        "material": "Mild Steel",
-        "category": "Angles & Tees",
-        "subcategory": "Equal Angles",
-        "patterns": [r"equal\s+angles\b", r"equal\s+leg\s+angles?\b"],
-        "table_prefix": "angle_equal"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Angles & Tees",
-        "subcategory": "Unequal Angles",
-        "patterns": [r"unequal\s+angles\b", r"unequal\s+leg\s+angles?\b"],
-        "table_prefix": "angle_unequal"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Angles & Tees",
-        "subcategory": "Inverted Angles",
-        "patterns": [r"inverted\s+angles", r"unequal\s+legs?\s+and\s+thickness"],
-        "table_prefix": "angle_inverted"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Angles & Tees",
-        "subcategory": "Mild Steel Tee Bars",
-        "patterns": [r"tee\s+bars", r"t\s+section\s+and\s+their\s+sectional"],
-        "table_prefix": "tee_bars"
-    },
+# Pre-compute taxonomy embeddings if ML is available
+if HAS_SENTENCE_TRANSFORMERS:
+    TAXONOMY_EMBEDDINGS = {k: model.encode(v, convert_to_tensor=True) for k, v in TAXONOMY_TERMS.items()}
+else:
+    TAXONOMY_EMBEDDINGS = {}
 
-    # --- MILD STEEL - BARS ---
-    {
-        "material": "Mild Steel",
-        "category": "Bars & Plates",
-        "subcategory": "Flat Bars",
-        "patterns": [r"flat\s+bars\b", r"flat\b\s*(?!.*\bplates?\b)"],
-        "table_prefix": "bar_flat"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Bars & Plates",
-        "subcategory": "Bulb Flats",
-        "patterns": [r"bulb\s+flats"],
-        "table_prefix": "bar_bulb_flat"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Bars & Plates",
-        "subcategory": "Square Bars",
-        "patterns": [r"square\s+bars\b"],
-        "table_prefix": "bar_square"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Bars & Plates",
-        "subcategory": "Deformed & Round Bars",
-        "patterns": [r"deformed\s+and\s+round\s+bars", r"rebar"],
-        "table_prefix": "bar_round_deformed"
-    },
 
-    # --- MILD STEEL - PLATES & OTHERS ---
-    {
-        "material": "Mild Steel",
-        "category": "Bars & Plates",
-        "subcategory": "Steel Plates",
-        "patterns": [r"plates\b", r"plates-specifications", r"chequered\s+（floor）\s+plates?"],
-        "table_prefix": "plate_standard"
-    },
-    {
-        "material": "Mild Steel",
-        "category": "Grating & Expanded Metal",
-        "subcategory": "Gratings & Expanded Metal",
-        "patterns": [r"gratings?", r"serrated\s+gratings?", r"expanded\s+metal"],
-        "table_prefix": "grating_expanded"
-    },
+def classify_material_embeddings(raw_text: str, col_headers: list, page_num: int) -> tuple:
+    """Uses Dense Vector Embeddings for Taxonomy Classification."""
+    combined_text = (raw_text[:1000] + " " + " ".join(str(h) for h in col_headers)).lower()
+    
+    best_material = "Mild Steel"
+    
+    if HAS_SENTENCE_TRANSFORMERS and combined_text.strip():
+        text_embedding = model.encode(combined_text, convert_to_tensor=True)
+        max_score = -1.0
+        
+        for material, tax_emb in TAXONOMY_EMBEDDINGS.items():
+            # Calculate Cosine Similarity
+            score = util.cos_sim(text_embedding, tax_emb).item()
+            if score > max_score:
+                max_score = score
+                best_material = material
+    else:
+        # Fallback keyword logic if ML is missing
+        if "stainless" in combined_text or "tp304" in combined_text: best_material = "Stainless Steel"
+        elif "alloy" in combined_text or "tempered" in combined_text: best_material = "Alloy Steel"
+        elif "bronze" in combined_text or "copper" in combined_text: best_material = "Non-Ferrous"
 
-    # --- FLANGES ---
-    {
-        "material": "Mild Steel",
-        "category": "Flanges",
-        "subcategory": "Flanges (JIS/ANSI/BS/DIN)",
-        "patterns": [r"flanges?\b", r"jis\s+flanges", r"ansi\s+flanges", r"slip-on\s+flanges", r"welding\s+neck\s+flanges"],
-        "table_prefix": "flanges"
-    },
+    # Default structural heuristics based on headers
+    category = "Miscellaneous"
+    subcategory = "Other Profiles"
+    prefix = "steel_misc"
+    standard = "Standard"
 
-    # --- NON-FERROUS METALS ---
-    {
-        "material": "Non-Ferrous",
-        "category": "Copper/Brass/Bronze",
-        "subcategory": "Copper",
-        "patterns": [r"\bcopper\b"],
-        "table_prefix": "non_ferrous_copper"
-    },
-    {
-        "material": "Non-Ferrous",
-        "category": "Copper/Brass/Bronze",
-        "subcategory": "Brass",
-        "patterns": [r"\bbrass\b"],
-        "table_prefix": "non_ferrous_brass"
-    },
-    {
-        "material": "Non-Ferrous",
-        "category": "Copper/Brass/Bronze",
-        "subcategory": "Bronze",
-        "patterns": [r"\bbronze\b", r"continuous\s+casting"],
-        "table_prefix": "non_ferrous_bronze"
-    }
-]
+    if "beam" in combined_text or "ub" in combined_text:
+        category, subcategory, prefix = "Beams & Columns", "Universal Beams", "beam_universal"
+    elif "pipe" in combined_text or "schedule" in combined_text:
+        category, subcategory, prefix = "Pipes & Tubings", "Steel Pipes", "pipe_general"
+    elif "plate" in combined_text or "thickness" in combined_text:
+        category, subcategory, prefix = "Bars & Plates", "Steel Plates", "plate_structural"
+    
+    if "jis" in combined_text: standard = "JIS"
+    elif "astm" in combined_text: standard = "ASTM"
+    elif "bs" in combined_text: standard = "BS/EN"
 
-# Tracker variable used during processing to remember the active Material context
-CURRENT_MATERIAL_CONTEXT = "Mild Steel"
-
-def classify_table_enhanced(raw_text, title_context, col_headers, page_num):
-    global CURRENT_MATERIAL_CONTEXT
-
-    text_content = (raw_text + " " + title_context + " " + " ".join(col_headers)).lower()
-
-    # Broad context tracking based on page headers or section markings
-    if "stainless steel" in text_content or page_num >= 206:
-        if page_num < 248:
-            CURRENT_MATERIAL_CONTEXT = "Stainless Steel"
-    if "machinery steel" in text_content or "harden & tempered" in text_content or page_num >= 248:
-        if page_num < 254:
-            CURRENT_MATERIAL_CONTEXT = "Alloy Steel"
-    if "non-ferrous" in text_content or "bronze" in text_content or "copper" in text_content or page_num >= 254:
-        CURRENT_MATERIAL_CONTEXT = "Non-Ferrous"
-    if page_num < 206 and CURRENT_MATERIAL_CONTEXT != "Mild Steel":
-        CURRENT_MATERIAL_CONTEXT = "Mild Steel"
-
-    # Attempt rule-based match within active context
-    for rule in TAXONOMY_RULES:
-        if rule["material"] == CURRENT_MATERIAL_CONTEXT:
-            for pattern in rule["patterns"]:
-                if re.search(pattern, text_content):
-                    standard = "Standard"
-                    if re.search(r'\bjis\b|\bjp\b', text_content):
-                        standard = "JIS"
-                    elif re.search(r'\bbs\s*en\b|\bbs\b|\ben\b', text_content):
-                        standard = "BS/EN"
-                    elif re.search(r'\bastm\b|\bansi\b', text_content):
-                        standard = "ASTM/ANSI"
-                    elif re.search(r'\bstkm\b|\bks\b', text_content):
-                        standard = "KS/STKM"
-                    elif re.search(r'\bdin\b', text_content):
-                        standard = "DIN"
-                    elif re.search(r'\bapi\b', text_content):
-                        standard = "API"
-                    return CURRENT_MATERIAL_CONTEXT, rule["category"], rule["subcategory"], rule["table_prefix"], standard
-
-    # Fallback to general pattern sweep if context rules missed
-    for rule in TAXONOMY_RULES:
-        for pattern in rule["patterns"]:
-            if re.search(pattern, text_content):
-                return rule["material"], rule["category"], rule["subcategory"], rule["table_prefix"], "Standard"
-
-    return CURRENT_MATERIAL_CONTEXT, "Miscellaneous", "Other Profiles", "steel_misc", "Unknown"
+    return best_material, category, subcategory, prefix, standard
 
 
 # =====================================================================
-# DATABASE SETUP
+# LAYOUT & READING ORDER DETECTION
 # =====================================================================
 
-def init_db(db_path: str):
+def detect_reading_order_and_formulas(page_obj, document_id, page_num, cursor):
+    """
+    Simulates advanced layout detection by sorting elements geometrically (Reading Order).
+    Detects and extracts equations/formulas from non-tabular text blocks.
+    """
+    words = page_obj.extract_words()
+    # Sort top-to-bottom, then left-to-right
+    words.sort(key=lambda w: (round(w['top'] / 10), w['x0']))
+    
+    text_blocks = []
+    current_block = []
+    last_bottom = 0
+    
+    for w in words:
+        if current_block and (w['top'] - last_bottom > 15):
+            text_blocks.append(" ".join(current_block))
+            current_block = []
+        current_block.append(w['text'])
+        last_bottom = w['bottom']
+    if current_block:
+        text_blocks.append(" ".join(current_block))
+
+    # Formula Detection Heuristics
+    math_symbols = r'[\+\-\=\/\*\(\)σπθΔΣ]'
+    for block in text_blocks:
+        if "=" in block and re.search(math_symbols, block) and len(block) < 100:
+            # Looks like an equation (e.g., I = bh^3/12)
+            cursor.execute("""
+                INSERT INTO extracted_formulas (document_id, page_number, formula_text)
+                VALUES (?, ?, ?)
+            """, (document_id, page_num, block))
+
+
+# =====================================================================
+# FIGURE & DIAGRAM EXTRACTION
+# =====================================================================
+
+def extract_figures(page_obj, document_id, page_num, cursor, output_dir="./extracted_figures"):
+    """Detects and extracts images, charts, and structural cross-sections."""
+    if getattr(page_obj, 'images', None):
+        os.makedirs(output_dir, exist_ok=True)
+        
+        for idx, img in enumerate(page_obj.images):
+            try:
+                # Extract image bounding box
+                x0, top, x1, bottom = img["x0"], img["top"], img["x1"], img["bottom"]
+                width, height = x1 - x0, bottom - top
+                
+                # Filter out tiny logos or noise
+                if width < 50 or height < 50:
+                    continue
+                
+                # Crop and save the figure
+                cropped = page_obj.within_bbox((x0, top, x1, bottom)).to_image(resolution=150)
+                img_filename = f"doc_{document_id}_pg_{page_num}_fig_{idx}.png"
+                img_path = os.path.join(output_dir, img_filename)
+                cropped.save(img_path, format="PNG")
+                
+                cursor.execute("""
+                    INSERT INTO extracted_figures (document_id, page_number, filepath, width, height)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (document_id, page_num, img_path, width, height))
+            except Exception as e:
+                pass
+
+
+# =====================================================================
+# HASHING FOR DUPLICATE DETECTION
+# =====================================================================
+
+def compute_table_hash(headers: list, data_rows: list) -> str:
+    """Cryptographic hash to ensure Camelot/pdfplumber overlap doesn't cause duplicates."""
+    table_string = json.dumps({"headers": headers, "rows": data_rows}, sort_keys=True)
+    return hashlib.md5(table_string.encode('utf-8')).hexdigest()
+
+
+# =====================================================================
+# TABLE SCHEMA & CONTINUITY MANAGEMENT (FROM PREVIOUS VERSION)
+# =====================================================================
+
+def flatten_recursive_headers(table_rows: list) -> tuple:
+    if not table_rows or len(table_rows) < 2: return table_rows[0] if table_rows else [], 1
+    num_cols = max(len(r) for r in table_rows)
+    detected_depth = 1
+    unit_patterns = r"^(mm|in|kg|lb|ft|cm|sec|mpa|hb|g/m|kg/m|\%|\/)$"
+    for r_idx in range(1, min(4, len(table_rows))):
+        row_values = [str(x).strip().lower() for x in table_rows[r_idx] if x is not None]
+        if any(re.match(unit_patterns, val) or val == "" for val in row_values) and len([v for v in row_values if v]) > 0:
+            detected_depth = r_idx + 1
+        else: break
+    header_block = [list(table_rows[r_idx]) + [""] * (num_cols - len(table_rows[r_idx])) for r_idx in range(detected_depth)]
+    compressed_headers = []
+    for col_idx in range(num_cols):
+        path = []
+        for row_idx in range(detected_depth):
+            val = str(header_block[row_idx][col_idx]).strip()
+            if not val and col_idx > 0: val = str(header_block[row_idx][col_idx - 1]).strip()
+            if val and val not in path: path.append(val)
+        compressed_headers.append("_".join(path) if path else f"col_{col_idx+1}")
+    return compressed_headers, detected_depth
+
+def parse_header_units(header: str) -> tuple:
+    unit_regex = r"[\(\[\/](mm|in|kg|lb|ft|cm|sec|mpa|hb|g\/m|kg\/m|t|pc|pcs|wt|thk|od|id|dia|inches|meters)[\)\]]?"
+    match = re.search(unit_regex, header, re.IGNORECASE)
+    if match:
+        return re.sub(unit_regex, "", header, flags=re.IGNORECASE).strip('_ '), match.group(1)
+    return header, None
+
+class FieldTypeInference:
+    @staticmethod
+    def clean_numeric_string(val: str) -> str:
+        if not val: return ""
+        cleaned = val.strip().replace('o', '0').replace('O', '0').replace('l', '1').replace('I', '1').replace('B', '8')
+        return re.sub(r'[^\d\.\-]', '', cleaned)
+
+    @staticmethod
+    def infer_column_types(data_rows: list, num_cols: int) -> list:
+        types = []
+        for col_idx in range(num_cols):
+            int_v, float_v, text_v = 0, 0, 0
+            for row in data_rows:
+                if col_idx >= len(row): continue
+                val = str(row[col_idx]).strip()
+                if not val or val in ("-", "—", "N/A"): continue
+                cleaned = FieldTypeInference.clean_numeric_string(val)
+                if not cleaned: text_v += 1; continue
+                try: int(cleaned); int_v += 1
+                except:
+                    try: float(cleaned); float_v += 1
+                    except: text_v += 1
+            if (int_v + float_v + text_v) == 0 or text_v > (int_v + float_v) * 0.3: types.append("TEXT")
+            elif float_v > int_v: types.append("REAL")
+            else: types.append("INTEGER")
+        return types
+
+class TableContinuityResolver:
+    def __init__(self):
+        self.last_headers, self.last_table_name, self.last_page, self.last_category = None, None, None, None
+    def evaluate_continuity(self, current_headers: list, current_category: str, current_page: int) -> bool:
+        if not self.last_page or current_page != self.last_page + 1: return False
+        if current_category != self.last_category or len(current_headers) != len(self.last_headers): return False
+        overlap = set(current_headers).intersection(set(self.last_headers))
+        return len(overlap) / len(current_headers) >= 0.70
+    def update_state(self, table_name, headers, category, page_num):
+        self.last_table_name, self.last_headers, self.last_category, self.last_page = table_name, headers, category, page_num
+
+def consolidate_to_master_schema(conn, base_table_name: str, sanitized_headers: list, col_types: list) -> tuple:
+    cursor = conn.cursor()
+    master_table = f"cat_{base_table_name}"
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (master_table,))
+    core_columns = ["id", "material_desc", "standard_name", "page_number", "confidence_score", "extra_attributes", "table_hash"]
+    
+    if not cursor.fetchone():
+        col_defs = ["id INTEGER PRIMARY KEY AUTOINCREMENT", "material_desc TEXT", "standard_name TEXT", 
+                    "page_number INTEGER", "confidence_score REAL", "extra_attributes TEXT", "table_hash TEXT UNIQUE"]
+        primary_dims = ["size", "thickness", "width", "weight", "area", "diameter"]
+        for h, t in zip(sanitized_headers, col_types):
+            h_clean = h.replace("page_number", "page_num_val")
+            if any(dim in h_clean for dim in primary_dims) and h_clean not in core_columns:
+                col_defs.append(f"[{h_clean}] {t}")
+                core_columns.append(h_clean)
+        cursor.execute(f"CREATE TABLE [{master_table}] ({', '.join(col_defs)});")
+        conn.commit()
+    else:
+        cursor.execute(f"PRAGMA table_info([{master_table}])")
+        core_columns = [row[1] for row in cursor.fetchall()]
+    return master_table, core_columns
+
+
+# =====================================================================
+# DATABASE SETUP (WITH NEW ML TABLES)
+# =====================================================================
+
+def init_advanced_database(db_path: str):
     conn = sqlite3.connect(db_path)
-    conn.execute("PRAGMA journal_mode=WAL;")
-    conn.execute("PRAGMA synchronous=NORMAL;")
     cur = conn.cursor()
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS documents (
-            document_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT,
-            filepath TEXT,
-            title TEXT,
-            author TEXT,
-            page_count INTEGER,
-            indexed_time TEXT,
-            filesize INTEGER
-        );
-    """)
-
-    cur.execute("PRAGMA table_info(documents);")
-    existing_columns = [row[1] for row in cur.fetchall()]
-    if existing_columns and "filepath" not in existing_columns:
-        cur.execute("ALTER TABLE documents ADD COLUMN filepath TEXT;")
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS pdf_pages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            document_id INTEGER,
-            page_number INTEGER,
-            width REAL,
-            height REAL,
-            raw_text TEXT,
-            FOREIGN KEY(document_id) REFERENCES documents(document_id)
-        );
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS pdf_chunks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            page_id INTEGER,
-            chunk_index INTEGER,
-            chunk_text TEXT,
-            FOREIGN KEY(page_id) REFERENCES pdf_pages(id)
-        );
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS extracted_tables_registry (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            document_id INTEGER,
-            page_number INTEGER,
-            table_index INTEGER,
-            table_name TEXT,
-            material TEXT,
-            category TEXT,
-            subcategory TEXT,
-            standard_group TEXT,
-            num_rows INTEGER,
-            num_cols INTEGER,
-            strategy_used TEXT,
-            FOREIGN KEY(document_id) REFERENCES documents(document_id)
-        );
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS pdf_errors (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            document_id INTEGER,
-            page_number INTEGER,
-            error_type TEXT,
-            error_message TEXT,
-            offending_snippet TEXT,
-            FOREIGN KEY(document_id) REFERENCES documents(document_id)
-        );
-    """)
-
+    cur.execute("CREATE TABLE IF NOT EXISTS documents (id INTEGER PRIMARY KEY, filename TEXT, page_count INTEGER);")
+    cur.execute("CREATE TABLE IF NOT EXISTS pdf_pages (id INTEGER PRIMARY KEY, document_id INTEGER, page_number INTEGER, raw_text TEXT);")
+    cur.execute("CREATE TABLE IF NOT EXISTS extracted_figures (id INTEGER PRIMARY KEY, document_id INTEGER, page_number INTEGER, filepath TEXT, width REAL, height REAL);")
+    cur.execute("CREATE TABLE IF NOT EXISTS extracted_formulas (id INTEGER PRIMARY KEY, document_id INTEGER, page_number INTEGER, formula_text TEXT);")
+    cur.execute("CREATE VIRTUAL TABLE IF NOT EXISTS pdf_pages_fts USING fts5(raw_text, content='pdf_pages', content_rowid='id');")
     conn.commit()
     return conn
 
 
-def log_error(cursor, document_id: int, page_num: int, error_type: str,
-              error_message: str, offending_snippet: str = None):
-    snippet = str(offending_snippet)[:500] if offending_snippet else None
-    cursor.execute("""
-        INSERT INTO pdf_errors (document_id, page_number, error_type, error_message, offending_snippet)
-        VALUES (?, ?, ?, ?, ?)
-    """, (document_id, page_num, error_type, error_message, snippet))
-
-
 # =====================================================================
-# TABLE EXTRACTION STRATEGIES & HEURISTICS
+# MAIN ML PIPELINE
 # =====================================================================
 
-EXTRACTION_STRATEGIES = [
-    {
-        "name": "lines_strict",
-        "settings": {
-            "vertical_strategy": "lines",
-            "horizontal_strategy": "lines",
-            "snap_tolerance": 3,
-            "join_tolerance": 3,
-            "text_x_tolerance": 3,
-            "text_y_tolerance": 3,
-        }
-    },
-    {
-        "name": "lines_relaxed",
-        "settings": {
-            "vertical_strategy": "lines",
-            "horizontal_strategy": "lines",
-            "snap_tolerance": 6,
-            "join_tolerance": 6,
-            "text_x_tolerance": 5,
-            "text_y_tolerance": 5,
-        }
-    },
-    {
-        "name": "hybrid_text_vertical",
-        "settings": {
-            "vertical_strategy": "text",
-            "horizontal_strategy": "lines",
-            "snap_tolerance": 5,
-            "join_tolerance": 5,
-            "text_x_tolerance": 12,
-            "text_y_tolerance": 5,
-            "min_words_vertical": 3,
-        }
-    },
-    {
-        "name": "text_aligned",
-        "settings": {
-            "vertical_strategy": "text",
-            "horizontal_strategy": "text",
-            "snap_tolerance": 5,
-            "join_tolerance": 5,
-            "text_x_tolerance": 12,
-            "text_y_tolerance": 5,
-            "min_words_vertical": 3,
-        }
-    }
-]
+def process_pdf_document(pdf_path: str, db_path: str):
+    conn = init_advanced_database(db_path)
+    cursor = conn.cursor()
 
-DIM_HEADER_PATTERN = re.compile(
-    r'\b(mm|in|kg|lb|od|id|thk|wt|dia|size|width|depth|area|mass|weight|'
-    r'no\.?|nom|sch|grade|spec|type|length|ixx|iyy|zxx|zyy|thickness|'
-    r'section|designation|flange|web|radius|modulus|inertia|gyration)\b',
-    re.IGNORECASE
-)
+    cursor.execute("INSERT INTO documents (filename, page_count) VALUES (?, ?)", (os.path.basename(pdf_path), 0))
+    document_id = cursor.lastrowid
+    continuity_resolver = TableContinuityResolver()
 
-
-def clean_cell(val):
-    if val is None:
-        return ""
-    # Strip whitespace, strip control characters, normalize spaces
-    clean = re.sub(r'\s+', ' ', str(val)).strip()
-    return clean
-
-
-def is_valid_structural_data(table, cursor, doc_id, page_num):
-    if not table or len(table) < 2:
-        return False, "Insufficient rows"
-    
-    col_count = len(table[0])
-    if col_count < 2:
-        return False, "Insufficient columns"
-
-    # Fill rate analysis
-    total_cells = len(table) * col_count
-    filled_cells = sum(1 for row in table for cell in row if clean_cell(cell))
-    fill_rate = filled_cells / total_cells
-    if fill_rate < 0.15:
-        return False, f"Extremely low cell fill rate: {fill_rate:.1%}"
-
-    # Verify if header contains typical dimension/unit/spec tokens
-    header_str = " ".join([clean_cell(c) for c in table[0]])
-    if not DIM_HEADER_PATTERN.search(header_str) and not any(isinstance(r, (int, float)) for r in table[1][0:2]):
-        # Check second row if first didn't match (for hierarchical headers)
-        header_str_2 = " ".join([clean_cell(c) for c in table[1]]) if len(table) > 1 else ""
-        if not DIM_HEADER_PATTERN.search(header_str_2):
-            return False, "Header row does not contain expected dimension or structural attributes"
-
-    return True, "Valid Table"
-
-
-# =====================================================================
-# HIERARCHICAL HEADER RESOLUTION & CELL WRAP MERGING (FIXES CUTOFFS)
-# =====================================================================
-
-def is_row_continuation(row, prev_row) -> bool:
-    """
-    Heuristic to determine if an empty-prefix row is a cell text-wrapping continuation
-    or a brand new row containing vertically merged data cells.
-    """
-    # If the first column contains a value, it is definitely a new row.
-    if clean_cell(row[0]):
-        return False
-
-    # Find non-empty columns
-    non_empty_indices = [i for i, c in enumerate(row) if clean_cell(c)]
-    if not non_empty_indices:
-        return False  # Completely blank line
-
-    # If any other key columns contain new numeric-like values,
-    # it is a new vertically merged row rather than a text wrap continuation.
-    for idx in non_empty_indices:
-        val = clean_cell(row[idx])
-        # Match standard decimal numbers, fractions, or spec identifiers (like 'sch40', '1/2', '12.7')
-        if re.match(r'^\d+(\.\d+)?$|^\d+/\d+$|^\d+x\d+$|^\d+”?$|^sch\d+s?$', val, re.IGNORECASE):
-            return False  # Likely a new metric set under a merged section name
-
-    return True  # Otherwise, treat as cell wrapping continuation
-
-
-def clean_and_process_subtable(sub_rows: list) -> list:
-    """
-    1. Detects and compresses hierarchical headers dynamically (up to 3 rows).
-    2. Runs a robust row wrapping layout parser. Continuations of long descriptions
-       and wrapped texts are intelligently concatenated back into their parent cells
-       instead of producing broken, empty-key database rows.
-    3. Performs forward filling propagation on empty cells belonging to vertical merges.
-    """
-    if not sub_rows or len(sub_rows) < 2:
-        return sub_rows
-
-    # Step 1: Resolve header rows index
-    header_lines = 1
-    if len(sub_rows) >= 2:
-        header_2 = [clean_cell(c) for c in sub_rows[1]]
-        sub_patterns = r"^(mm|in|kg|lb|ft|cm|sec|max|min|depth|width|thickness|area|inertia|gyration|modulus|m|t|pc|pcs|wt|thk|od|id|dia)$"
-        if any(re.match(sub_patterns, val.lower()) for val in header_2 if val):
-            header_lines = 2
-            if len(sub_rows) >= 3:
-                header_3 = [clean_cell(c) for c in sub_rows[2]]
-                if any(re.match(sub_patterns, val.lower()) for val in header_3 if val):
-                    header_lines = 3
-
-    headers_to_merge = sub_rows[:header_lines]
-    data_rows = sub_rows[header_lines:]
-
-    num_cols = len(sub_rows[0])
-    flat_header = [""] * num_cols
-
-    # Compress parent spans down-across
-    for col_idx in range(num_cols):
-        col_parts = []
-        for row_idx in range(header_lines):
-            val = clean_cell(headers_to_merge[row_idx][col_idx])
-            if not val and col_idx > 0:
-                for left_idx in range(col_idx - 1, -1, -1):
-                    left_val = clean_cell(headers_to_merge[row_idx][left_idx])
-                    if left_val:
-                        val = left_val
-                        break
-            if val and val not in col_parts:
-                col_parts.append(val)
-        flat_header[col_idx] = "_".join(col_parts).strip()
-
-    # Step 2: Merge wrapped rows
-    merged_data = []
-    for row in data_rows:
-        is_continuation = False
-        if merged_data:
-            is_continuation = is_row_continuation(row, merged_data[-1])
-
-        if is_continuation and merged_data:
-            prev_row = merged_data[-1]
-            for col_idx in range(min(len(row), len(prev_row))):
-                curr_val = clean_cell(row[col_idx])
-                if curr_val:
-                    prev_val = clean_cell(prev_row[col_idx])
-                    if prev_val:
-                        prev_row[col_idx] = f"{prev_val} {curr_val}"
-                    else:
-                        prev_row[col_idx] = curr_val
-        else:
-            merged_data.append([clean_cell(c) for c in row])
-
-    # Step 3: Vertical forward-fill (propagation of vertically merged cell values)
-    last_seen = [""] * num_cols
-    for row_idx in range(len(merged_data)):
-        for col_idx in range(num_cols):
-            val = merged_data[row_idx][col_idx]
-            
-            # We forward-fill the left-most columns (columns 0, 1, 2)
-            # or columns whose header names indicate category grouping keys
-            header_name = flat_header[col_idx].lower() if col_idx < len(flat_header) else ""
-            is_grouping_col = (
-                col_idx < 3 or 
-                any(term in header_name for term in ["size", "class", "grade", "type", "dimension", "nominal", "outside_diameter", "pipe_size"])
-            )
-            
-            if val:
-                last_seen[col_idx] = val
-            elif is_grouping_col and last_seen[col_idx]:
-                merged_data[row_idx][col_idx] = last_seen[col_idx]
-
-    return [flat_header] + merged_data
-
-
-# =====================================================================
-# ADVANCED TABLE SPLITTING HEURISTICS
-# =====================================================================
-
-def split_table_rows(raw_table: list) -> list:
-    """
-    Splits a single extracted raw table (list of list of strings) into multiple
-    independent tables if it contains repeating headers or title dividers mid-table.
-    Returns list of dicts: [{"title_context": str, "rows": list}]
-    """
-    if not raw_table:
-        return []
-        
-    subtables = []
-    current_rows = []
-    current_title_context = ""
-    
-    # Helper to check if a row is a title/divider row
-    def is_title_row(row):
-        non_empty = [clean_cell(c) for c in row if clean_cell(c)]
-        if len(non_empty) == 1:
-            val = non_empty[0]
-            # Title rows are usually longer text strings
-            if len(val) > 4 and not re.match(r'^\d+(\.\d+)?$', val):
-                return True, val
-        # Check for rows that look like full title span (sometimes split across 2 adjacent columns)
-        if len(non_empty) == 2:
-            joined = " ".join(non_empty)
-            if len(joined) > 10 and any(x in joined.lower() for x in ["elbow", "return", "tee", "reducer", "cap", "table", "pn", "class", "flange", "pipe", "bar", "plate", "angle", "channel", "purlin", "metal", "grating"]):
-                return True, joined
-        return False, ""
-
-    # Helper to check if a row is a repeating header row
-    def is_header_repeat(row, first_row_header):
-        cleaned_row = [clean_cell(c).lower() for c in row]
-        cleaned_first = [clean_cell(c).lower() for c in first_row_header]
-        # If it matches the first row's columns closely
-        matches = sum(1 for r, f in zip(cleaned_row, cleaned_first) if r == f and r)
-        if matches >= max(2, len(cleaned_first) * 0.4):
-            return True
-        # Or if it contains typical header keywords
-        header_words = sum(1 for r in cleaned_row if DIM_HEADER_PATTERN.search(r))
-        if header_words >= max(2, len(cleaned_row) * 0.4):
-            return True
-        return False
-
-    first_header = None
-    for idx, row in enumerate(raw_table):
-        is_title, title_text = is_title_row(row)
-        
-        # Check if we should split at this row
-        should_split = False
-        if idx > 0:
-            if is_title:
-                should_split = True
-            elif first_header and is_header_repeat(row, first_header):
-                should_split = True
-        
-        if should_split:
-            if current_rows:
-                subtables.append({
-                    "title_context": current_title_context,
-                    "rows": current_rows
-                })
-            current_rows = []
-            if is_title:
-                current_title_context = title_text
-                first_header = None  # Reset first header to detect next actual column header row
-            else:
-                # If splitting on a repeated header, keep it as the start of the next subtable
-                current_rows.append(row)
-                first_header = row
-        else:
-            if not current_rows:
-                if not is_title:
-                    first_header = row
-                    current_rows.append(row)
-                else:
-                    current_title_context = title_text
-            else:
-                current_rows.append(row)
-    
-    if current_rows:
-        subtables.append({
-            "title_context": current_title_context,
-            "rows": current_rows
-        })
-        
-    return subtables
-
-
-# =====================================================================
-# SYSTEM PROCESSING PIPELINE
-# =====================================================================
-
-def process_pdf(pdf_path: str, conn):
-    cur = conn.cursor()
-    filename = os.path.basename(pdf_path)
-    filesize = os.path.getsize(pdf_path)
-
-    # Register document
-    cur.execute("""
-        INSERT INTO documents (filename, filepath, title, author, page_count, indexed_time, filesize)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (filename, pdf_path, "Yick Hoe Structural Steel Handbook", "Yick Hoe Group", 0, datetime.now().isoformat(), filesize))
-    document_id = cur.lastrowid
-
-    print(f"[*] Started processing: {filename} (ID: {document_id})")
+    # Set tracking to avoid duplicates across Camelot/pdfplumber
+    seen_table_hashes = set()
 
     with pdfplumber.open(pdf_path) as pdf:
-        page_count = len(pdf.pages)
-        cur.execute("UPDATE documents SET page_count = ? WHERE document_id = ?", (page_count, document_id))
+        pages_to_process = len(pdf.pages)
+        cursor.execute("UPDATE documents SET page_count = ? WHERE id = ?", (pages_to_process, document_id))
+        conn.commit()
 
-        for page_idx, page in enumerate(tqdm(pdf.pages, desc="Extracting pages")):
+        print(f"\n[ML Pipeline] Commencing semantic parsing on {pages_to_process} pages...")
+
+        for page_idx in tqdm(range(pages_to_process), desc="Processing Pages"):
             page_num = page_idx + 1
-            width = float(page.width)
-            height = float(page.height)
+            page_obj = pdf.pages[page_idx]
+            raw_text = page_obj.extract_text() or ""
+
+            # 1. LAYOUT ANALYSIS: Extract Figures, Reading Order, and Formulas
+            extract_figures(page_obj, document_id, page_num, cursor)
+            detect_reading_order_and_formulas(page_obj, document_id, page_num, cursor)
+
+            # Store Text
+            cursor.execute("INSERT INTO pdf_pages (document_id, page_number, raw_text) VALUES (?, ?, ?)", (document_id, page_num, raw_text))
             
-            raw_text = page.extract_text() or ""
-            
-            # Save raw page text
-            cur.execute("""
-                INSERT INTO pdf_pages (document_id, page_number, width, height, raw_text)
-                VALUES (?, ?, ?, ?, ?)
-            """, (document_id, page_num, width, height, raw_text))
-            page_id = cur.lastrowid
+            # 2. TABLE EXTRACTION
+            tables_found = []
+            try:
+                tables = camelot.read_pdf(pdf_path, pages=str(page_num), flavor="lattice", suppress_stdout=True)
+                tables_found = [t.data for t in tables if t.parsing_report.get("accuracy", 0) > 60.0]
+            except: pass
 
-            # Save basic search chunks
-            chunks = chunk_text(raw_text)
-            for chunk_idx, chunk_text_val in enumerate(chunks):
-                cur.execute("""
-                    INSERT INTO pdf_chunks (page_id, chunk_index, chunk_text)
-                    VALUES (?, ?, ?)
-                """, (page_id, chunk_idx, chunk_text_val))
+            if not tables_found:
+                try: tables_found = [t.extract() for t in page_obj.find_tables()]
+                except: pass
 
-            # Apply table extraction strategies adaptively
-            table_extracted = False
-            extracted_subtables = []
-
-            for strategy in EXTRACTION_STRATEGIES:
-                try:
-                    tables = page.extract_tables(table_settings=strategy["settings"])
-                    if tables:
-                        for tbl_idx, raw_table in enumerate(tables):
-                            # Clean the cells first
-                            cleaned_raw = [[clean_cell(c) for c in row] for row in raw_table if row]
-                            
-                            # Dynamically split sub-tables on this page
-                            sub_tables = split_table_rows(cleaned_raw)
-                            
-                            for sub_tbl in sub_tables:
-                                sub_rows = sub_tbl["rows"]
-                                sub_title = sub_tbl["title_context"]
-                                
-                                valid, reason = is_valid_structural_data(sub_rows, cur, document_id, page_num)
-                                if valid:
-                                    # Process, flatten, merge, and forward-fill cells
-                                    structured_table = clean_and_process_subtable(sub_rows)
-                                    extracted_subtables.append((sub_title, structured_table, strategy["name"]))
-                                    table_extracted = True
-                        
-                        if table_extracted:
-                            break  # Move to saving steps once a robust strategy succeeds
-                except Exception as ex:
-                    log_error(cur, document_id, page_num, "STRATEGY_FAILED", f"Strategy '{strategy['name']}' crashed: {str(ex)}")
-
-            # If visual grid strategy failed, log page skip or fallback attempt
-            if not table_extracted:
-                log_error(cur, document_id, page_num, "GRID_EXTRACTION_EMPTY", "Visual grid checks returned zero validated tables.")
-
-            # Save extracted tables
-            for tbl_idx, (title_context, table_data, strategy_used) in enumerate(extracted_subtables):
-                save_table_to_db(cur, document_id, page_num, tbl_idx, title_context, table_data, strategy_used, raw_text)
-
-            conn.commit()
-
-    conn.commit()
-    print("[+] Processing complete. Database updated successfully.")
-
-
-# =====================================================================
-# DYNAMIC SCHEMA GENERATION & INGESTION
-# =====================================================================
-
-def save_table_to_db(cur, document_id: int, page_num: int, table_idx: int, title_context: str, table_data: list, strategy_used: str, raw_text: str):
-    headers = table_data[0]
-    data_rows = table_data[1:]
-
-    # Clean headers to produce unique SQL column safe identifiers
-    clean_headers = []
-    seen = {}
-    for i, h in enumerate(headers):
-        clean = re.sub(r'[^a-zA-Z0-9_]', '_', h.strip()).lower()
-        clean = re.sub(r'_+', '_', clean).strip('_')
-        if not clean:
-            clean = f"col_{i+1}"
-        if clean in seen:
-            seen[clean] += 1
-            clean = f"{clean}_{seen[clean]}"
-        else:
-            seen[clean] = 0
-        clean_headers.append(clean)
-
-    # Classify material taxonomy
-    material, category, subcategory, prefix, standard = classify_table_enhanced(raw_text, title_context, headers, page_num)
-    
-    # Generate unique dynamic table name
-    if title_context:
-        # Sanitize subtitle context to form unique split table name
-        sanitized_title = re.sub(r'[^a-zA-Z0-9]', '_', title_context.strip()).lower()
-        sanitized_title = re.sub(r'_+', '_', sanitized_title).strip('_')
-        title_slug = "_".join(sanitized_title.split("_")[:4])
-        table_name = f"cat_{prefix}_{title_slug}"
-    else:
-        table_name = f"cat_{prefix}"
-    
-    # Verify/Adjust SQLite table schema dynamically
-    column_defs = ", ".join([f"[{col}] TEXT" for col in clean_headers])
-    
-    try:
-        # Check if table already exists
-        cur.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
-        table_exists = cur.fetchone()
-
-        if not table_exists:
-            # Create a brand new consolidated table
-            cur.execute(f"""
-                CREATE TABLE IF NOT EXISTS [{table_name}] (
-                    row_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    document_id INTEGER,
-                    page_number INTEGER,
-                    subtable_title TEXT,
-                    {column_defs}
-                )
-            """)
-        else:
-            # Table exists; verify if we need to append any missing columns (Schema Evolution)
-            cur.execute(f"PRAGMA table_info([{table_name}])")
-            existing_cols = [col[1] for col in cur.fetchall()]
-            
-            if "subtable_title" not in existing_cols:
-                cur.execute(f"ALTER TABLE [{table_name}] ADD COLUMN subtable_title TEXT")
+            # 3. SEMANTIC PROCESSING & DB INSERTION
+            for raw_table in tables_found:
+                if len(raw_table) < 2: continue
                 
-            for clean_col in clean_headers:
-                if clean_col not in existing_cols:
-                    cur.execute(f"ALTER TABLE [{table_name}] ADD COLUMN [{clean_col}] TEXT")
+                headers, header_depth = flatten_recursive_headers(raw_table)
+                data_rows = raw_table[header_depth:]
+                if not data_rows: continue
 
-        # Ingest row data safely
-        for row in data_rows:
-            # Ensure row matches the expected column layout
-            row_data = row + [""] * (len(headers) - len(row))  # Pad if shorter
-            row_data = row_data[:len(headers)]                # Clip if longer
+                # Duplicate Detection Hash
+                tbl_hash = compute_table_hash(headers, data_rows)
+                if tbl_hash in seen_table_hashes:
+                    continue
+                seen_table_hashes.add(tbl_hash)
 
-            columns_segment = ", ".join([f"[{c}]" for c in clean_headers])
-            placeholders = ", ".join(["?"] * (len(clean_headers) + 3))
-            
-            insert_query = f"""
-                INSERT INTO [{table_name}] (document_id, page_number, subtable_title, {columns_segment})
-                VALUES ({placeholders})
-            """
-            cur.execute(insert_query, [document_id, page_num, title_context] + row_data)
+                clean_headers_with_units = [parse_header_units(h) for h in headers]
+                sanitized_headers = [re.sub(r'[^a-z0-9_]', '_', h[0].lower().strip()).strip('_') for h in clean_headers_with_units]
+                units_metadata = {sanitized_headers[i]: clean_headers_with_units[i][1] for i in range(len(sanitized_headers)) if clean_headers_with_units[i][1]}
 
-        # Log entry inside registry
-        cur.execute("""
-            INSERT INTO extracted_tables_registry 
-            (document_id, page_number, table_index, table_name, material, category, subcategory, standard_group, num_rows, num_cols, strategy_used)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (document_id, page_num, table_idx, table_name, material, category, subcategory, standard, len(data_rows), len(headers), strategy_used))
+                # Embeddings-based Classification
+                material, category, subcategory, table_prefix, standard = classify_material_embeddings(raw_text, sanitized_headers, page_num)
 
-    except Exception as ex:
-        log_error(cur, document_id, page_num, "SCHEMA_OR_INGESTION_ERROR", 
-                  f"Failed table ingestion into [{table_name}]: {str(ex)}", offending_snippet=str(headers))
+                is_continuation = continuity_resolver.evaluate_continuity(sanitized_headers, category, page_num)
+                if is_continuation:
+                    target_table_name = continuity_resolver.last_table_name
+                    cursor.execute(f"PRAGMA table_info([{target_table_name}])")
+                    existing_columns = [row[1] for row in cursor.fetchall()]
+                else:
+                    col_types = FieldTypeInference.infer_column_types(data_rows, len(sanitized_headers))
+                    target_table_name, existing_columns = consolidate_to_master_schema(conn, table_prefix, sanitized_headers, col_types)
 
+                col_types = FieldTypeInference.infer_column_types(data_rows, len(sanitized_headers))
+                
+                for row in data_rows:
+                    insert_dict = {
+                        "material_desc": subcategory, "standard_name": standard, 
+                        "page_number": page_num, "confidence_score": 95.0, 
+                        "table_hash": tbl_hash, "extra_attributes": {}
+                    }
+                    
+                    row_string_for_vector_db = f"{material} {subcategory} {standard}. "
 
-# =====================================================================
-# TEXT CHUNKING
-# =====================================================================
+                    for h, val, col_type in zip(sanitized_headers, row, col_types):
+                        val_str = str(val).strip() if val is not None else ""
+                        val_stored = val_str
+                        
+                        if col_type in ("INTEGER", "REAL"):
+                            val_stored = FieldTypeInference.clean_numeric_string(val_str)
+                        if val_stored and h in units_metadata:
+                            val_stored = f"{val_stored} {units_metadata[h]}"
 
-def chunk_text(text: str, chunk_size: int = 100, overlap: int = 20) -> list:
-    if not text:
-        return []
-    words = text.split()
-    chunks = []
-    start = 0
-    while start < len(words):
-        end = start + chunk_size
-        chunks.append(" ".join(words[start:end]))
-        start += chunk_size - overlap
-    return chunks
+                        row_string_for_vector_db += f"{h}: {val_stored}, "
+                        
+                        h_clean = h.replace("page_number", "page_num_val")
+                        if h_clean in existing_columns: insert_dict[h_clean] = val_stored
+                        else: insert_dict["extra_attributes"][h_clean] = val_stored
+
+                    insert_dict["extra_attributes"] = json.dumps(insert_dict["extra_attributes"])
+                    cols = list(insert_dict.keys())
+                    
+                    try:
+                        cursor.execute(f"INSERT INTO [{target_table_name}] ({', '.join(cols)}) VALUES ({', '.join(['?']*len(cols))})", [insert_dict[k] for k in cols])
+                        row_id = cursor.lastrowid
+                        
+                        # Vector DB Insertion (Semantic Search)
+                        if vector_collection and row_string_for_vector_db.strip():
+                            vector_collection.add(
+                                documents=[row_string_for_vector_db],
+                                metadatas=[{"table": target_table_name, "row_id": row_id}],
+                                ids=[f"{target_table_name}_{row_id}"]
+                            )
+                    except sqlite3.IntegrityError:
+                        pass # Hash constraint prevented duplicate insertion
+
+                continuity_resolver.update_state(target_table_name, sanitized_headers, category, page_num)
+                conn.commit()
+
+    conn.close()
+    print(f"\n[Success] ML Pipeline completed. Structured data in SQLite. Embeddings in ChromaDB.")
 
 
 if __name__ == "__main__":
-    pdf_file = "YH_HandBook.pdf"
-    db_file = "structural_steel_handbook.db"
-
-    if not os.path.exists(pdf_file):
-        print(f"[-] Error: {pdf_file} not found. Put the PDF in this directory and try again.")
-        sys.exit(1)
-
-    print("[*] Initializing Database...")
-    db_connection = init_db(db_file)
-
-    try:
-        process_pdf(pdf_file, db_connection)
-    except KeyboardInterrupt:
-        print("\n[-] Extraction interrupted by user.")
-    finally:
-        db_connection.close()
+    print("=== Document AI Pipeline Diagnostics ===")
+    print(f"SentenceTransformers (Embeddings): {'Loaded' if HAS_SENTENCE_TRANSFORMERS else 'Missing (pip install sentence-transformers)'}")
+    print(f"ChromaDB (Vector Search): {'Loaded' if HAS_CHROMADB else 'Missing (pip install chromadb)'}")
+    
+    process_pdf_document("./YH_HandBook.pdf", "./steel_specifications.db")
