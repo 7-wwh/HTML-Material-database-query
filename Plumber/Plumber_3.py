@@ -1,17 +1,23 @@
 import pdfplumber
+import camelot
 import sqlite3
-import re
+import pandas as pd
 import os
 import sys
+import re
+import warnings
 from datetime import datetime
 from tqdm import tqdm
+
+# Suppress noisy camelot/ghostscript warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
 # =====================================================================
 # ENHANCED STEEL TAXONOMY & CLASSIFICATION CONFIGURATION
 # =====================================================================
 
 TAXONOMY_RULES = [
-    # --- STAINLESS STEEL SECTION ---
+    # --- STAINLESS STEEL SECTION (Pages 206+) ---
     {
         "material": "Stainless Steel",
         "category": "Stainless Pipes & Tubings",
@@ -37,7 +43,7 @@ TAXONOMY_RULES = [
         "material": "Stainless Steel",
         "category": "Stainless Bars",
         "subcategory": "Stainless Steel Bars (Round/Hex/Square)",
-        "patterns": [r"stainless\s+steel\s+bars", r"hexagon\s+bars", r"square\s+bars", r"ss\s+bars"],
+        "patterns": [r"stainless\s+steel\s+bars", r"hexagon\s+bars", r"square\s+bars"],
         "table_prefix": "ss_bar"
     },
     {
@@ -55,12 +61,12 @@ TAXONOMY_RULES = [
         "table_prefix": "ss_fitting"
     },
 
-    # --- MACHINERY / ALLOY STEEL ---
+    # --- MACHINERY / ALLOY STEEL (Pages 248+) ---
     {
         "material": "Alloy Steel",
         "category": "Machinery Steel",
         "subcategory": "Harden & Tempered Carbon Steel",
-        "patterns": [r"carbon\s+steel\s+ks\s+d3752", r"s10c", r"s45c", r"harden\s+&\s+tempered\s+steel"],
+        "patterns": [r"carbon\s+steel\s+ks\s+d3752", r"s10c", r"s45c", r"harden\s+&\s+tempered"],
         "table_prefix": "alloy_carbon_tempered"
     },
     {
@@ -253,7 +259,7 @@ TAXONOMY_RULES = [
         "table_prefix": "grating_expanded"
     },
 
-    # --- FLANGES ---
+    # --- FLANGES (Pages 187+) ---
     {
         "material": "Mild Steel",
         "category": "Flanges",
@@ -262,7 +268,7 @@ TAXONOMY_RULES = [
         "table_prefix": "flanges"
     },
 
-    # --- NON-FERROUS METALS ---
+    # --- NON-FERROUS METALS (Pages 254+) ---
     {
         "material": "Non-Ferrous",
         "category": "Copper/Brass/Bronze",
@@ -286,15 +292,13 @@ TAXONOMY_RULES = [
     }
 ]
 
-# Tracker variable used during processing to remember the active Material context
 CURRENT_MATERIAL_CONTEXT = "Mild Steel"
 
-def classify_table_enhanced(raw_text, title_context, col_headers, page_num):
+
+def classify_table_enhanced(raw_text, col_headers, page_num):
     global CURRENT_MATERIAL_CONTEXT
+    text_content = (raw_text + " " + " ".join(str(h) for h in col_headers)).lower()
 
-    text_content = (raw_text + " " + title_context + " " + " ".join(col_headers)).lower()
-
-    # Broad context tracking based on page headers or section markings
     if "stainless steel" in text_content or page_num >= 206:
         if page_num < 248:
             CURRENT_MATERIAL_CONTEXT = "Stainless Steel"
@@ -306,33 +310,35 @@ def classify_table_enhanced(raw_text, title_context, col_headers, page_num):
     if page_num < 206 and CURRENT_MATERIAL_CONTEXT != "Mild Steel":
         CURRENT_MATERIAL_CONTEXT = "Mild Steel"
 
-    # Attempt rule-based match within active context
     for rule in TAXONOMY_RULES:
         if rule["material"] == CURRENT_MATERIAL_CONTEXT:
             for pattern in rule["patterns"]:
                 if re.search(pattern, text_content):
-                    standard = "Standard"
-                    if re.search(r'\bjis\b|\bjp\b', text_content):
-                        standard = "JIS"
-                    elif re.search(r'\bbs\s*en\b|\bbs\b|\ben\b', text_content):
-                        standard = "BS/EN"
-                    elif re.search(r'\bastm\b|\bansi\b', text_content):
-                        standard = "ASTM/ANSI"
-                    elif re.search(r'\bstkm\b|\bks\b', text_content):
-                        standard = "KS/STKM"
-                    elif re.search(r'\bdin\b', text_content):
-                        standard = "DIN"
-                    elif re.search(r'\bapi\b', text_content):
-                        standard = "API"
+                    standard = _detect_standard(text_content)
                     return CURRENT_MATERIAL_CONTEXT, rule["category"], rule["subcategory"], rule["table_prefix"], standard
 
-    # Fallback to general pattern sweep if context rules missed
     for rule in TAXONOMY_RULES:
         for pattern in rule["patterns"]:
             if re.search(pattern, text_content):
                 return rule["material"], rule["category"], rule["subcategory"], rule["table_prefix"], "Standard"
 
     return CURRENT_MATERIAL_CONTEXT, "Miscellaneous", "Other Profiles", "steel_misc", "Unknown"
+
+
+def _detect_standard(text_content):
+    if re.search(r'\bjis\b|\bjp\b', text_content):
+        return "JIS"
+    elif re.search(r'\bbs\s*en\b|\bbs\b|\ben\b', text_content):
+        return "BS/EN"
+    elif re.search(r'\bastm\b|\bansi\b', text_content):
+        return "ASTM/ANSI"
+    elif re.search(r'\bstkm\b|\bks\b', text_content):
+        return "KS/STKM"
+    elif re.search(r'\bdin\b', text_content):
+        return "DIN"
+    elif re.search(r'\bapi\b', text_content):
+        return "API"
+    return "Standard"
 
 
 # =====================================================================
@@ -348,29 +354,22 @@ def init_db(db_path: str):
     cur.execute("""
         CREATE TABLE IF NOT EXISTS documents (
             document_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT,
-            filepath TEXT,
-            title TEXT,
-            author TEXT,
-            page_count INTEGER,
-            indexed_time TEXT,
-            filesize INTEGER
+            filename TEXT, filepath TEXT, title TEXT, author TEXT,
+            page_count INTEGER, indexed_time TEXT, filesize INTEGER
         );
     """)
 
     cur.execute("PRAGMA table_info(documents);")
     existing_columns = [row[1] for row in cur.fetchall()]
     if existing_columns and "filepath" not in existing_columns:
+        print("[MIGRATION] Adding missing 'filepath' column to documents table...")
         cur.execute("ALTER TABLE documents ADD COLUMN filepath TEXT;")
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS pdf_pages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            document_id INTEGER,
-            page_number INTEGER,
-            width REAL,
-            height REAL,
-            raw_text TEXT,
+            document_id INTEGER, page_number INTEGER,
+            width REAL, height REAL, raw_text TEXT,
             FOREIGN KEY(document_id) REFERENCES documents(document_id)
         );
     """)
@@ -378,9 +377,7 @@ def init_db(db_path: str):
     cur.execute("""
         CREATE TABLE IF NOT EXISTS pdf_chunks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            page_id INTEGER,
-            chunk_index INTEGER,
-            chunk_text TEXT,
+            page_id INTEGER, chunk_index INTEGER, chunk_text TEXT,
             FOREIGN KEY(page_id) REFERENCES pdf_pages(id)
         );
     """)
@@ -388,17 +385,11 @@ def init_db(db_path: str):
     cur.execute("""
         CREATE TABLE IF NOT EXISTS extracted_tables_registry (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            document_id INTEGER,
-            page_number INTEGER,
-            table_index INTEGER,
-            table_name TEXT,
-            material TEXT,
-            category TEXT,
-            subcategory TEXT,
-            standard_group TEXT,
-            num_rows INTEGER,
-            num_cols INTEGER,
-            strategy_used TEXT,
+            document_id INTEGER, page_number INTEGER,
+            table_index INTEGER, table_name TEXT,
+            material TEXT, category TEXT, subcategory TEXT,
+            standard_group TEXT, extraction_strategy TEXT,
+            num_rows INTEGER, num_cols INTEGER,
             FOREIGN KEY(document_id) REFERENCES documents(document_id)
         );
     """)
@@ -406,510 +397,539 @@ def init_db(db_path: str):
     cur.execute("""
         CREATE TABLE IF NOT EXISTS pdf_errors (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            document_id INTEGER,
-            page_number INTEGER,
-            error_type TEXT,
-            error_message TEXT,
-            offending_snippet TEXT,
+            document_id INTEGER, page_number INTEGER, error_message TEXT,
             FOREIGN KEY(document_id) REFERENCES documents(document_id)
         );
     """)
+
+    cur.execute("""
+        CREATE VIRTUAL TABLE IF NOT EXISTS pdf_pages_fts USING fts5(
+            raw_text, content='pdf_pages', content_rowid='id'
+        );
+    """)
+
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_pages_doc_page ON pdf_pages(document_id, page_number);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_chunks_page_id ON pdf_chunks(page_id);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_registry_doc_page ON extracted_tables_registry(document_id, page_number);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_registry_taxonomy ON extracted_tables_registry(material, category, subcategory);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_registry_name ON extracted_tables_registry(table_name);")
 
     conn.commit()
     return conn
 
 
-def log_error(cursor, document_id: int, page_num: int, error_type: str,
-              error_message: str, offending_snippet: str = None):
-    snippet = str(offending_snippet)[:500] if offending_snippet else None
-    cursor.execute("""
-        INSERT INTO pdf_errors (document_id, page_number, error_type, error_message, offending_snippet)
-        VALUES (?, ?, ?, ?, ?)
-    """, (document_id, page_num, error_type, error_message, snippet))
+# =====================================================================
+# UTILITIES AND DATA CLEANING
+# =====================================================================
+
+def sanitize_identifier(name: str, default_prefix: str = "col") -> str:
+    if not name or not str(name).strip():
+        return default_prefix
+    clean = str(name).strip().lower()
+    clean = re.sub(r'[^a-z0-9_]', '_', clean)
+    clean = re.sub(r'_+', '_', clean).strip('_')
+    if clean and clean[0].isdigit():
+        clean = f"_{clean}"
+    return clean if clean else default_prefix
+
+
+def get_consolidated_table_name(cursor, prefix: str, col_headers: list) -> str:
+    candidate_base = f"cat_{prefix}"
+    counter = 1
+    while True:
+        table_name = candidate_base if counter == 1 else f"{candidate_base}_v{counter}"
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+        if not cursor.fetchone():
+            return table_name
+        cursor.execute(f"PRAGMA table_info([{table_name}])")
+        existing_cols = [row[1] for row in cursor.fetchall()]
+        non_meta_cols = [c for c in col_headers if c != "page_number"]
+        non_meta_existing = [c for c in existing_cols if c != "page_number"]
+        if set(non_meta_cols) == set(non_meta_existing):
+            return table_name
+        counter += 1
+
+
+def sanitize_column_headers(headers: list) -> list:
+    sanitized_cols = []
+    seen_names = {}
+    for i, h in enumerate(headers):
+        clean_h = sanitize_identifier(h, default_prefix=f"col_{i+1}")
+        if clean_h == "page_number":
+            clean_h = "page_number_data"
+        if clean_h in seen_names:
+            seen_names[clean_h] += 1
+            clean_h = f"{clean_h}_{seen_names[clean_h]}"
+        else:
+            seen_names[clean_h] = 0
+        sanitized_cols.append(clean_h)
+    sanitized_cols.append("page_number")
+    return sanitized_cols
+
+
+def compress_hierarchical_headers(table: list) -> list:
+    if len(table) < 2:
+        return table
+    header_1 = [str(x).strip() if x is not None else "" for x in table[0]]
+    header_2 = [str(x).strip() if x is not None else "" for x in table[1]]
+    sub_patterns = r"^(mm|in|kg|lb|ft|cm|sec|max|min|depth|width|thickness|area|inertia|gyration|modulus|m|t|pc|pcs|wt|thk|od|id|dia)$"
+    looks_hierarchical = any(re.match(sub_patterns, val.lower()) for val in header_2 if val)
+    if looks_hierarchical:
+        compressed_header = []
+        current_parent = ""
+        for parent, child in zip(header_1, header_2):
+            if parent:
+                current_parent = parent
+            if current_parent and child and current_parent.lower() != child.lower():
+                compressed_header.append(f"{current_parent}_{child}")
+            elif current_parent:
+                compressed_header.append(current_parent)
+            else:
+                compressed_header.append(child if child else "dimension")
+        table[0] = compressed_header
+        del table[1]
+    return table
 
 
 # =====================================================================
-# TABLE EXTRACTION STRATEGIES & HEURISTICS
+# FORWARD-FILL: PROPAGATE MERGED/SPANNING CELL VALUES
 # =====================================================================
 
-EXTRACTION_STRATEGIES = [
+def forward_fill_merged_cells(table: list) -> list:
+    """
+    Propagates values across rows and columns where PDF merged cells
+    result in empty strings after extraction.
+
+    Strategy:
+      1. Horizontal fill  — within each row, carry the last non-empty
+         value rightward into consecutive empty cells (handles cells
+         merged across columns).
+      2. Vertical fill    — for each column, carry the last non-empty
+         value downward into consecutive empty cells (handles cells
+         merged across rows).
+
+    Skips the header row (index 0) to avoid corrupting column names.
+    Only fills cells that are *completely empty* ("" or None) so
+    legitimate zero / dash values are preserved.
+    """
+    if not table or len(table) < 2:
+        return table
+
+    num_cols = max(len(row) for row in table)
+
+    # Pad all rows to uniform width first
+    padded = []
+    for row in table:
+        padded_row = list(row) + [""] * (num_cols - len(row))
+        padded.append(padded_row)
+
+    # ── 1. Horizontal forward-fill (skip header row) ──────────────────
+    for r_idx in range(1, len(padded)):
+        last_val = ""
+        for c_idx in range(num_cols):
+            cell = padded[r_idx][c_idx]
+            cell_str = str(cell).strip() if cell is not None else ""
+            if cell_str:
+                last_val = cell_str
+                padded[r_idx][c_idx] = cell_str
+            else:
+                # Only propagate if there IS a value to carry and the
+                # cell looks structurally empty (not a deliberate gap
+                # like a separator or standalone numeric zero)
+                if last_val and last_val not in ("-", "—", "–", "N/A", "n/a"):
+                    padded[r_idx][c_idx] = last_val
+        # Reset between rows — horizontal fill does NOT bleed across rows
+        last_val = ""
+
+    # ── 2. Vertical forward-fill (skip header row) ────────────────────
+    for c_idx in range(num_cols):
+        last_val = ""
+        for r_idx in range(1, len(padded)):
+            cell_str = str(padded[r_idx][c_idx]).strip() if padded[r_idx][c_idx] is not None else ""
+            if cell_str:
+                last_val = cell_str
+            else:
+                if last_val and last_val not in ("-", "—", "–", "N/A", "n/a"):
+                    padded[r_idx][c_idx] = last_val
+
+    return padded
+
+
+def clean_extracted_table(table: list, page_num: int) -> list:
+    """
+    Standardizes raw tabular data:
+      1. Compress multi-level headers
+      2. Forward-fill merged/spanning cells
+      3. Guarantee uniform rectangular layout
+      4. Append page_number as the final column of every data row
+    """
+    if not table:
+        return []
+
+    table = compress_hierarchical_headers(table)
+
+    # Drop completely blank rows
+    raw_rows = []
+    for row in table:
+        cleaned_row = [str(cell).strip() if cell is not None else "" for cell in row]
+        if any(cell != "" for cell in cleaned_row):
+            raw_rows.append(cleaned_row)
+
+    if not raw_rows:
+        return []
+
+    # Apply forward-fill BEFORE final rectangular normalization
+    raw_rows = forward_fill_merged_cells(raw_rows)
+
+    base_col_count = max(len(row) for row in raw_rows)
+    cleaned_rows = []
+
+    # Header row
+    header_row = raw_rows[0]
+    if len(header_row) < base_col_count:
+        header_row += [""] * (base_col_count - len(header_row))
+    else:
+        header_row = header_row[:base_col_count]
+    cleaned_rows.append(header_row)
+
+    # Data rows — append page_number as an integer at the very end
+    for row in raw_rows[1:]:
+        if len(row) < base_col_count:
+            row += [""] * (base_col_count - len(row))
+        else:
+            row = row[:base_col_count]
+        row.append(page_num)
+        cleaned_rows.append(row)
+
+    return cleaned_rows
+
+
+# =====================================================================
+# CAMELOT TABLE EXTRACTION (PRIMARY ENGINE)
+# =====================================================================
+
+# Camelot strategies ordered from most structured to most permissive.
+# copy_text=['h','v'] activates built-in merged-cell text propagation.
+# row_tol controls how many pts of vertical gap still count as one row
+# (critical for multi-line text within a cell that pdfplumber splits).
+
+CAMELOT_STRATEGIES = [
     {
-        "name": "lines_strict",
-        "settings": {
-            "vertical_strategy": "lines",
-            "horizontal_strategy": "lines",
-            "snap_tolerance": 3,
-            "join_tolerance": 3,
-            "text_x_tolerance": 3,
-            "text_y_tolerance": 3,
-        }
+        "name": "camelot_lattice",          # Best for fully-bordered tables
+        "flavor": "lattice",
+        "kwargs": {
+            "copy_text":        ["h", "v"],  # propagate merged cell text
+            "line_scale":       40,
+            "process_background": False,
+            "strip_text":       "\n",
+        },
     },
     {
-        "name": "lines_relaxed",
-        "settings": {
-            "vertical_strategy": "lines",
-            "horizontal_strategy": "lines",
-            "snap_tolerance": 6,
-            "join_tolerance": 6,
-            "text_x_tolerance": 5,
-            "text_y_tolerance": 5,
-        }
+        "name": "camelot_lattice_bg",        # Background-line tables (shaded headers)
+        "flavor": "lattice",
+        "kwargs": {
+            "copy_text":        ["h", "v"],
+            "line_scale":       40,
+            "process_background": True,
+            "strip_text":       "\n",
+        },
     },
     {
-        "name": "hybrid_text_vertical",
-        "settings": {
-            "vertical_strategy": "text",
-            "horizontal_strategy": "lines",
-            "snap_tolerance": 5,
-            "join_tolerance": 5,
-            "text_x_tolerance": 12,
-            "text_y_tolerance": 5,
-            "min_words_vertical": 3,
-        }
+        "name": "camelot_stream",            # No ruled lines — text-column alignment
+        "flavor": "stream",
+        "kwargs": {
+            "row_tol":          8,           # join text fragments within 8 pts vertically
+            "column_tol":       4,
+            "strip_text":       "\n",
+        },
     },
     {
-        "name": "text_aligned",
-        "settings": {
-            "vertical_strategy": "text",
-            "horizontal_strategy": "text",
-            "snap_tolerance": 5,
-            "join_tolerance": 5,
-            "text_x_tolerance": 12,
-            "text_y_tolerance": 5,
-            "min_words_vertical": 3,
-        }
-    }
+        "name": "camelot_stream_loose",      # Very loose for dense/compressed tables
+        "flavor": "stream",
+        "kwargs": {
+            "row_tol":          15,
+            "column_tol":       6,
+            "strip_text":       "\n",
+            "edge_tol":         50,
+        },
+    },
 ]
 
-DIM_HEADER_PATTERN = re.compile(
-    r'\b(mm|in|kg|lb|od|id|thk|wt|dia|size|width|depth|area|mass|weight|'
-    r'no\.?|nom|sch|grade|spec|type|length|ixx|iyy|zxx|zyy|thickness|'
-    r'section|designation|flange|web|radius|modulus|inertia|gyration)\b',
-    re.IGNORECASE
-)
+# Minimum quality gates for accepting a camelot extraction
+CAM_MIN_ROWS = 2
+CAM_MIN_COLS = 2
+CAM_MIN_ACCURACY = 60.0   # camelot's own parsing_report accuracy metric (0-100)
 
 
-def clean_cell(val):
-    if val is None:
-        return ""
-    # Strip whitespace, strip control characters, normalize spaces
-    clean = re.sub(r'\s+', ' ', str(val)).strip()
-    return clean
+def _camelot_table_to_list(cam_table) -> list:
+    """Converts a camelot Table object to a plain list-of-lists."""
+    return cam_table.data   # already a list[list[str]]
 
 
-def is_valid_structural_data(table, cursor, doc_id, page_num):
-    if not table or len(table) < 2:
-        return False, "Insufficient rows"
-    
-    col_count = len(table[0])
-    if col_count < 2:
-        return False, "Insufficient columns"
-
-    # Fill rate analysis
-    total_cells = len(table) * col_count
-    filled_cells = sum(1 for row in table for cell in row if clean_cell(cell))
-    fill_rate = filled_cells / total_cells
+def _score_table(data: list) -> float:
+    """
+    Quality heuristic: penalises shattered (too many columns) or sparse
+    (too many empties) extractions so the deduplication loop picks the
+    best version when strategies overlap on the same region.
+    """
+    if not data:
+        return 0.0
+    rows = len(data)
+    cols = len(data[0]) if rows else 0
+    if rows < CAM_MIN_ROWS or cols < CAM_MIN_COLS:
+        return 0.0
+    total = rows * cols
+    filled = sum(1 for r in data for c in r if c is not None and str(c).strip())
+    fill_rate = filled / total
     if fill_rate < 0.15:
-        return False, f"Extremely low cell fill rate: {fill_rate:.1%}"
-
-    # Verify if header contains typical dimension/unit/spec tokens
-    header_str = " ".join([clean_cell(c) for c in table[0]])
-    if not DIM_HEADER_PATTERN.search(header_str) and not any(isinstance(r, (int, float)) for r in table[1][0:2]):
-        # Check second row if first didn't match (for hierarchical headers)
-        header_str_2 = " ".join([clean_cell(c) for c in table[1]]) if len(table) > 1 else ""
-        if not DIM_HEADER_PATTERN.search(header_str_2):
-            return False, "Header row does not contain expected dimension or structural attributes"
-
-    return True, "Valid Table"
+        return 0.0
+    return (cols * 10.0) + (rows * 2.5) + (fill_rate * 100.0)
 
 
-# =====================================================================
-# HIERARCHICAL HEADER RESOLUTION & CELL WRAP MERGING (FIXES CUTOFFS)
-# =====================================================================
-
-def is_row_continuation(row, prev_row) -> bool:
+def extract_tables_camelot(pdf_path: str, page_num: int) -> list:
     """
-    Heuristic to determine if an empty-prefix row is a cell text-wrapping continuation
-    or a brand new row containing vertically merged data cells.
+    Runs all Camelot strategies on a single page and returns a
+    deduplicated list of (data, strategy_name) tuples, ordered
+    top-to-bottom by their vertical position on the page.
+
+    Camelot's built-in copy_text=['h','v'] handles cells that span
+    multiple columns or rows at the PDF rendering level — something
+    pdfplumber cannot see because it works purely on text coordinates.
+    Remaining gaps (blank strings) are handled later by forward_fill.
     """
-    # If the first column contains a value, it is definitely a new row.
-    if clean_cell(row[0]):
-        return False
+    page_str = str(page_num)
+    accepted = []   # list of dicts: {data, bbox_y, score, strategy}
 
-    # Find non-empty columns
-    non_empty_indices = [i for i, c in enumerate(row) if clean_cell(c)]
-    if not non_empty_indices:
-        return False  # Completely blank line
-
-    # If any other key columns contain new numeric-like values,
-    # it is a new vertically merged row rather than a text wrap continuation.
-    for idx in non_empty_indices:
-        val = clean_cell(row[idx])
-        # Match standard decimal numbers, fractions, or spec identifiers (like 'sch40', '1/2', '12.7')
-        if re.match(r'^\d+(\.\d+)?$|^\d+/\d+$|^\d+x\d+$|^\d+”?$|^sch\d+s?$', val, re.IGNORECASE):
-            return False  # Likely a new metric set under a merged section name
-
-    return True  # Otherwise, treat as cell wrapping continuation
-
-
-def clean_and_process_subtable(sub_rows: list) -> list:
-    """
-    1. Detects and compresses hierarchical headers dynamically (up to 3 rows).
-    2. Runs a robust row wrapping layout parser. Continuations of long descriptions
-       and wrapped texts are intelligently concatenated back into their parent cells
-       instead of producing broken, empty-key database rows.
-    3. Performs forward filling propagation on empty cells belonging to vertical merges.
-    """
-    if not sub_rows or len(sub_rows) < 2:
-        return sub_rows
-
-    # Step 1: Resolve header rows index
-    header_lines = 1
-    if len(sub_rows) >= 2:
-        header_2 = [clean_cell(c) for c in sub_rows[1]]
-        sub_patterns = r"^(mm|in|kg|lb|ft|cm|sec|max|min|depth|width|thickness|area|inertia|gyration|modulus|m|t|pc|pcs|wt|thk|od|id|dia)$"
-        if any(re.match(sub_patterns, val.lower()) for val in header_2 if val):
-            header_lines = 2
-            if len(sub_rows) >= 3:
-                header_3 = [clean_cell(c) for c in sub_rows[2]]
-                if any(re.match(sub_patterns, val.lower()) for val in header_3 if val):
-                    header_lines = 3
-
-    headers_to_merge = sub_rows[:header_lines]
-    data_rows = sub_rows[header_lines:]
-
-    num_cols = len(sub_rows[0])
-    flat_header = [""] * num_cols
-
-    # Compress parent spans down-across
-    for col_idx in range(num_cols):
-        col_parts = []
-        for row_idx in range(header_lines):
-            val = clean_cell(headers_to_merge[row_idx][col_idx])
-            if not val and col_idx > 0:
-                for left_idx in range(col_idx - 1, -1, -1):
-                    left_val = clean_cell(headers_to_merge[row_idx][left_idx])
-                    if left_val:
-                        val = left_val
-                        break
-            if val and val not in col_parts:
-                col_parts.append(val)
-        flat_header[col_idx] = "_".join(col_parts).strip()
-
-    # Step 2: Merge wrapped rows
-    merged_data = []
-    for row in data_rows:
-        is_continuation = False
-        if merged_data:
-            is_continuation = is_row_continuation(row, merged_data[-1])
-
-        if is_continuation and merged_data:
-            prev_row = merged_data[-1]
-            for col_idx in range(min(len(row), len(prev_row))):
-                curr_val = clean_cell(row[col_idx])
-                if curr_val:
-                    prev_val = clean_cell(prev_row[col_idx])
-                    if prev_val:
-                        prev_row[col_idx] = f"{prev_val} {curr_val}"
-                    else:
-                        prev_row[col_idx] = curr_val
-        else:
-            merged_data.append([clean_cell(c) for c in row])
-
-    # Step 3: Vertical forward-fill (propagation of vertically merged cell values)
-    last_seen = [""] * num_cols
-    for row_idx in range(len(merged_data)):
-        for col_idx in range(num_cols):
-            val = merged_data[row_idx][col_idx]
-            
-            # We forward-fill the left-most columns (columns 0, 1, 2)
-            # or columns whose header names indicate category grouping keys
-            header_name = flat_header[col_idx].lower() if col_idx < len(flat_header) else ""
-            is_grouping_col = (
-                col_idx < 3 or 
-                any(term in header_name for term in ["size", "class", "grade", "type", "dimension", "nominal", "outside_diameter", "pipe_size"])
+    for strategy in CAMELOT_STRATEGIES:
+        try:
+            tables = camelot.read_pdf(
+                pdf_path,
+                pages=page_str,
+                flavor=strategy["flavor"],
+                suppress_stdout=True,
+                **strategy["kwargs"],
             )
-            
-            if val:
-                last_seen[col_idx] = val
-            elif is_grouping_col and last_seen[col_idx]:
-                merged_data[row_idx][col_idx] = last_seen[col_idx]
+        except Exception as exc:
+            # Non-fatal: log and try next strategy
+            print(f"  [Camelot/{strategy['name']}] page {page_num}: {exc}")
+            continue
 
-    return [flat_header] + merged_data
+        for cam_tbl in tables:
+            # Reject low-confidence parses
+            try:
+                accuracy = cam_tbl.parsing_report.get("accuracy", 0)
+                if accuracy < CAM_MIN_ACCURACY:
+                    continue
+            except Exception:
+                pass
 
+            data = _camelot_table_to_list(cam_tbl)
+            if not data or len(data) < CAM_MIN_ROWS or len(data[0]) < CAM_MIN_COLS:
+                continue
 
-# =====================================================================
-# ADVANCED TABLE SPLITTING HEURISTICS
-# =====================================================================
+            score = _score_table(data)
+            if score <= 0.0:
+                continue
 
-def split_table_rows(raw_table: list) -> list:
-    """
-    Splits a single extracted raw table (list of list of strings) into multiple
-    independent tables if it contains repeating headers or title dividers mid-table.
-    Returns list of dicts: [{"title_context": str, "rows": list}]
-    """
-    if not raw_table:
-        return []
-        
-    subtables = []
-    current_rows = []
-    current_title_context = ""
-    
-    # Helper to check if a row is a title/divider row
-    def is_title_row(row):
-        non_empty = [clean_cell(c) for c in row if clean_cell(c)]
-        if len(non_empty) == 1:
-            val = non_empty[0]
-            # Title rows are usually longer text strings
-            if len(val) > 4 and not re.match(r'^\d+(\.\d+)?$', val):
-                return True, val
-        # Check for rows that look like full title span (sometimes split across 2 adjacent columns)
-        if len(non_empty) == 2:
-            joined = " ".join(non_empty)
-            if len(joined) > 10 and any(x in joined.lower() for x in ["elbow", "return", "tee", "reducer", "cap", "table", "pn", "class", "flange", "pipe", "bar", "plate", "angle", "channel", "purlin", "metal", "grating"]):
-                return True, joined
-        return False, ""
+            # camelot bbox is (x1, y1, x2, y2) in PDF pts (origin bottom-left)
+            # We use y1 (bottom of table) to approximate vertical reading order
+            try:
+                bbox_y = cam_tbl._bbox[1]
+            except Exception:
+                bbox_y = 0.0
 
-    # Helper to check if a row is a repeating header row
-    def is_header_repeat(row, first_row_header):
-        cleaned_row = [clean_cell(c).lower() for c in row]
-        cleaned_first = [clean_cell(c).lower() for c in first_row_header]
-        # If it matches the first row's columns closely
-        matches = sum(1 for r, f in zip(cleaned_row, cleaned_first) if r == f and r)
-        if matches >= max(2, len(cleaned_first) * 0.4):
-            return True
-        # Or if it contains typical header keywords
-        header_words = sum(1 for r in cleaned_row if DIM_HEADER_PATTERN.search(r))
-        if header_words >= max(2, len(cleaned_row) * 0.4):
-            return True
-        return False
+            # Overlap/duplicate detection: compare against already-accepted
+            duplicate = False
+            for existing in accepted:
+                # Simple heuristic: same approximate y-position AND similar
+                # column count → likely same table extracted twice
+                same_region = abs(bbox_y - existing["bbox_y"]) < 20
+                same_shape = abs(len(data[0]) - len(existing["data"][0])) <= 1
+                if same_region and same_shape:
+                    # Keep whichever has a higher score
+                    if score > existing["score"]:
+                        existing["data"] = data
+                        existing["score"] = score
+                        existing["strategy"] = strategy["name"]
+                    duplicate = True
+                    break
 
-    first_header = None
-    for idx, row in enumerate(raw_table):
-        is_title, title_text = is_title_row(row)
-        
-        # Check if we should split at this row
-        should_split = False
-        if idx > 0:
-            if is_title:
-                should_split = True
-            elif first_header and is_header_repeat(row, first_header):
-                should_split = True
-        
-        if should_split:
-            if current_rows:
-                subtables.append({
-                    "title_context": current_title_context,
-                    "rows": current_rows
+            if not duplicate:
+                accepted.append({
+                    "data":     data,
+                    "bbox_y":   bbox_y,
+                    "score":    score,
+                    "strategy": strategy["name"],
                 })
-            current_rows = []
-            if is_title:
-                current_title_context = title_text
-                first_header = None  # Reset first header to detect next actual column header row
-            else:
-                # If splitting on a repeated header, keep it as the start of the next subtable
-                current_rows.append(row)
-                first_header = row
-        else:
-            if not current_rows:
-                if not is_title:
-                    first_header = row
-                    current_rows.append(row)
-                else:
-                    current_title_context = title_text
-            else:
-                current_rows.append(row)
-    
-    if current_rows:
-        subtables.append({
-            "title_context": current_title_context,
-            "rows": current_rows
-        })
-        
-    return subtables
+
+    # Re-order top-to-bottom (camelot y=0 is page bottom, so higher y = higher on page)
+    accepted.sort(key=lambda x: x["bbox_y"], reverse=True)
+
+    return [(item["data"], item["strategy"]) for item in accepted]
 
 
 # =====================================================================
-# SYSTEM PROCESSING PIPELINE
+# PDFPLUMBER FALLBACK ENGINE
 # =====================================================================
 
-def process_pdf(pdf_path: str, conn):
-    cur = conn.cursor()
-    filename = os.path.basename(pdf_path)
-    filesize = os.path.getsize(pdf_path)
+PDFPLUMBER_STRATEGIES = [
+    {
+        "name": "plumber_lines_strict",
+        "settings": {
+            "vertical_strategy": "lines", "horizontal_strategy": "lines",
+            "snap_tolerance": 3, "join_tolerance": 3,
+            "text_x_tolerance": 3, "text_y_tolerance": 3,
+        },
+    },
+    {
+        "name": "plumber_hybrid",
+        "settings": {
+            "vertical_strategy": "text", "horizontal_strategy": "lines",
+            "snap_tolerance": 5, "join_tolerance": 5,
+            "text_x_tolerance": 12, "text_y_tolerance": 5,
+            "min_words_vertical": 3,
+        },
+    },
+    {
+        "name": "plumber_text_aligned",
+        "settings": {
+            "vertical_strategy": "text", "horizontal_strategy": "text",
+            "snap_tolerance": 5, "join_tolerance": 5,
+            "text_x_tolerance": 12, "text_y_tolerance": 5,
+            "min_words_vertical": 3,
+        },
+    },
+]
 
-    # Register document
-    cur.execute("""
-        INSERT INTO documents (filename, filepath, title, author, page_count, indexed_time, filesize)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (filename, pdf_path, "Yick Hoe Structural Steel Handbook", "Yick Hoe Group", 0, datetime.now().isoformat(), filesize))
-    document_id = cur.lastrowid
+MIN_ROWS = 2
+MIN_COLS = 2
 
-    print(f"[*] Started processing: {filename} (ID: {document_id})")
 
-    with pdfplumber.open(pdf_path) as pdf:
-        page_count = len(pdf.pages)
-        cur.execute("UPDATE documents SET page_count = ? WHERE document_id = ?", (page_count, document_id))
+def _plumber_is_useful(table: list) -> bool:
+    if not table or len(table) < MIN_ROWS or not table[0] or len(table[0]) < MIN_COLS:
+        return False
+    data = table[1:]
+    total = sum(len(r) for r in data)
+    if total == 0:
+        return False
+    filled = sum(1 for r in data for c in r if c is not None and str(c).strip())
+    return (filled / total) >= 0.20
 
-        for page_idx, page in enumerate(tqdm(pdf.pages, desc="Extracting pages")):
-            page_num = page_idx + 1
-            width = float(page.width)
-            height = float(page.height)
-            
-            raw_text = page.extract_text() or ""
-            
-            # Save raw page text
-            cur.execute("""
-                INSERT INTO pdf_pages (document_id, page_number, width, height, raw_text)
-                VALUES (?, ?, ?, ?, ?)
-            """, (document_id, page_num, width, height, raw_text))
-            page_id = cur.lastrowid
 
-            # Save basic search chunks
-            chunks = chunk_text(raw_text)
-            for chunk_idx, chunk_text_val in enumerate(chunks):
-                cur.execute("""
-                    INSERT INTO pdf_chunks (page_id, chunk_index, chunk_text)
-                    VALUES (?, ?, ?)
-                """, (page_id, chunk_idx, chunk_text_val))
+def _plumber_score(raw_table: list) -> float:
+    if not raw_table:
+        return 0.0
+    rows = len(raw_table)
+    cols = len(raw_table[0]) if rows > 0 else 0
+    if rows < MIN_ROWS or cols < MIN_COLS:
+        return 0.0
+    total = rows * cols
+    filled = sum(1 for r in raw_table for c in r if c is not None and str(c).strip())
+    fill_rate = filled / total
+    if fill_rate < 0.2:
+        return 0.0
+    return (cols * 10.0) + (rows * 2.5) + (fill_rate * 100.0)
 
-            # Apply table extraction strategies adaptively
-            table_extracted = False
-            extracted_subtables = []
 
-            for strategy in EXTRACTION_STRATEGIES:
+def _get_area(box) -> float:
+    return max((box[2] - box[0]) * (box[3] - box[1]), 1e-5)
+
+
+def _intersection_area(b1, b2) -> float:
+    x0, y0 = max(b1[0], b2[0]), max(b1[1], b2[1])
+    x1, y1 = min(b1[2], b2[2]), min(b1[3], b2[3])
+    return (x1 - x0) * (y1 - y0) if x0 < x1 and y0 < y1 else 0.0
+
+
+def extract_tables_pdfplumber(page) -> list:
+    """pdfplumber multi-strategy fallback — used when Camelot finds nothing."""
+    candidates = []
+    for strategy in PDFPLUMBER_STRATEGIES:
+        try:
+            tables = page.find_tables(table_settings=strategy["settings"])
+        except Exception as e:
+            print(f"  [pdfplumber/{strategy['name']}]: {e}")
+            continue
+        for tobj in tables:
+            try:
+                raw = tobj.extract()
+            except Exception:
+                continue
+            if not _plumber_is_useful(raw):
+                continue
+            score = _plumber_score(raw)
+            if score <= 0.0:
+                continue
+            candidates.append({"raw": raw, "strategy": strategy["name"],
+                                "bbox": tobj.bbox, "score": score})
+
+    candidates.sort(key=lambda x: x["score"], reverse=True)
+    accepted = []
+    for cand in candidates:
+        overlap = False
+        for acc in accepted:
+            iarea = _intersection_area(cand["bbox"], acc["bbox"])
+            if iarea > 0:
+                if (iarea / _get_area(cand["bbox"]) > 0.3 or
+                        iarea / _get_area(acc["bbox"]) > 0.3):
+                    overlap = True
+                    break
+        if not overlap:
+            accepted.append(cand)
+
+    accepted.sort(key=lambda x: x["bbox"][1])
+    return [(t["raw"], t["strategy"]) for t in accepted]
+
+
+# =====================================================================
+# UNIFIED TABLE EXTRACTOR
+# =====================================================================
+
+def extract_tables_for_page(pdf_path: str, plumber_page, page_num: int) -> list:
+    """
+    Two-tier extraction:
+      Tier 1 — Camelot  (handles merged cells, multi-line sentences,
+                          and ruled-line tables with copy_text propagation)
+      Tier 2 — pdfplumber (fallback for pages Camelot cannot parse,
+                            e.g. no bounding boxes / ghost-script issues)
+
+    Returns list of (raw_table_list, strategy_name).
+    """
+    tables = extract_tables_camelot(pdf_path, page_num)
+    if not tables:
+        tables = extract_tables_pdfplumber(plumber_page)
+    return tables
+
+
+# =====================================================================
+# TABLE INSERTS WITH CONSOLIDATION
+# =====================================================================
+
+def save_and_populate_table(conn, table_name: str, col_headers: list, data_rows: list):
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+    if not cursor.fetchone():
+        col_defs = []
+        for col in col_headers:
+            if col == "page_number":
+                col_defs.append("[page_number] INTEGER")
+            else:
+                col_defs.append(f"[{col}] TEXT")
+        cursor.execute(f"CREATE TABLE [{table_name}] ({', '.join(col_defs)})")
+        critical_dimensions = ["size", "depth", "width", "thickness", "weight",
+                               "mass", "grade", "section_size", "diameter"]
+        for header in col_headers:
+            if any(term in header for term in critical_dimensions):
+                idx_name = sanitize_identifier(f"idx_{table_name}_{header}"[:60], "idx_custom")
                 try:
-                    tables = page.extract_tables(table_settings=strategy["settings"])
-                    if tables:
-                        for tbl_idx, raw_table in enumerate(tables):
-                            # Clean the cells first
-                            cleaned_raw = [[clean_cell(c) for c in row] for row in raw_table if row]
-                            
-                            # Dynamically split sub-tables on this page
-                            sub_tables = split_table_rows(cleaned_raw)
-                            
-                            for sub_tbl in sub_tables:
-                                sub_rows = sub_tbl["rows"]
-                                sub_title = sub_tbl["title_context"]
-                                
-                                valid, reason = is_valid_structural_data(sub_rows, cur, document_id, page_num)
-                                if valid:
-                                    # Process, flatten, merge, and forward-fill cells
-                                    structured_table = clean_and_process_subtable(sub_rows)
-                                    extracted_subtables.append((sub_title, structured_table, strategy["name"]))
-                                    table_extracted = True
-                        
-                        if table_extracted:
-                            break  # Move to saving steps once a robust strategy succeeds
-                except Exception as ex:
-                    log_error(cur, document_id, page_num, "STRATEGY_FAILED", f"Strategy '{strategy['name']}' crashed: {str(ex)}")
+                    cursor.execute(f"CREATE INDEX IF NOT EXISTS [{idx_name}] ON [{table_name}]([{header}]);")
+                except Exception:
+                    pass
+        page_idx = sanitize_identifier(f"idx_{table_name}_page_number", "idx_page")
+        cursor.execute(f"CREATE INDEX IF NOT EXISTS [{page_idx}] ON [{table_name}]([page_number]);")
 
-            # If visual grid strategy failed, log page skip or fallback attempt
-            if not table_extracted:
-                log_error(cur, document_id, page_num, "GRID_EXTRACTION_EMPTY", "Visual grid checks returned zero validated tables.")
-
-            # Save extracted tables
-            for tbl_idx, (title_context, table_data, strategy_used) in enumerate(extracted_subtables):
-                save_table_to_db(cur, document_id, page_num, tbl_idx, title_context, table_data, strategy_used, raw_text)
-
-            conn.commit()
-
-    conn.commit()
-    print("[+] Processing complete. Database updated successfully.")
-
-
-# =====================================================================
-# DYNAMIC SCHEMA GENERATION & INGESTION
-# =====================================================================
-
-def save_table_to_db(cur, document_id: int, page_num: int, table_idx: int, title_context: str, table_data: list, strategy_used: str, raw_text: str):
-    headers = table_data[0]
-    data_rows = table_data[1:]
-
-    # Clean headers to produce unique SQL column safe identifiers
-    clean_headers = []
-    seen = {}
-    for i, h in enumerate(headers):
-        clean = re.sub(r'[^a-zA-Z0-9_]', '_', h.strip()).lower()
-        clean = re.sub(r'_+', '_', clean).strip('_')
-        if not clean:
-            clean = f"col_{i+1}"
-        if clean in seen:
-            seen[clean] += 1
-            clean = f"{clean}_{seen[clean]}"
-        else:
-            seen[clean] = 0
-        clean_headers.append(clean)
-
-    # Classify material taxonomy
-    material, category, subcategory, prefix, standard = classify_table_enhanced(raw_text, title_context, headers, page_num)
-    
-    # Generate unique dynamic table name
-    if title_context:
-        # Sanitize subtitle context to form unique split table name
-        sanitized_title = re.sub(r'[^a-zA-Z0-9]', '_', title_context.strip()).lower()
-        sanitized_title = re.sub(r'_+', '_', sanitized_title).strip('_')
-        title_slug = "_".join(sanitized_title.split("_")[:4])
-        table_name = f"cat_{prefix}_{title_slug}"
-    else:
-        table_name = f"cat_{prefix}"
-    
-    # Verify/Adjust SQLite table schema dynamically
-    column_defs = ", ".join([f"[{col}] TEXT" for col in clean_headers])
-    
-    try:
-        # Check if table already exists
-        cur.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
-        table_exists = cur.fetchone()
-
-        if not table_exists:
-            # Create a brand new consolidated table
-            cur.execute(f"""
-                CREATE TABLE IF NOT EXISTS [{table_name}] (
-                    row_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    document_id INTEGER,
-                    page_number INTEGER,
-                    subtable_title TEXT,
-                    {column_defs}
-                )
-            """)
-        else:
-            # Table exists; verify if we need to append any missing columns (Schema Evolution)
-            cur.execute(f"PRAGMA table_info([{table_name}])")
-            existing_cols = [col[1] for col in cur.fetchall()]
-            
-            if "subtable_title" not in existing_cols:
-                cur.execute(f"ALTER TABLE [{table_name}] ADD COLUMN subtable_title TEXT")
-                
-            for clean_col in clean_headers:
-                if clean_col not in existing_cols:
-                    cur.execute(f"ALTER TABLE [{table_name}] ADD COLUMN [{clean_col}] TEXT")
-
-        # Ingest row data safely
-        for row in data_rows:
-            # Ensure row matches the expected column layout
-            row_data = row + [""] * (len(headers) - len(row))  # Pad if shorter
-            row_data = row_data[:len(headers)]                # Clip if longer
-
-            columns_segment = ", ".join([f"[{c}]" for c in clean_headers])
-            placeholders = ", ".join(["?"] * (len(clean_headers) + 3))
-            
-            insert_query = f"""
-                INSERT INTO [{table_name}] (document_id, page_number, subtable_title, {columns_segment})
-                VALUES ({placeholders})
-            """
-            cur.execute(insert_query, [document_id, page_num, title_context] + row_data)
-
-        # Log entry inside registry
-        cur.execute("""
-            INSERT INTO extracted_tables_registry 
-            (document_id, page_number, table_index, table_name, material, category, subcategory, standard_group, num_rows, num_cols, strategy_used)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (document_id, page_num, table_idx, table_name, material, category, subcategory, standard, len(data_rows), len(headers), strategy_used))
-
-    except Exception as ex:
-        log_error(cur, document_id, page_num, "SCHEMA_OR_INGESTION_ERROR", 
-                  f"Failed table ingestion into [{table_name}]: {str(ex)}", offending_snippet=str(headers))
+    placeholders = ", ".join(["?"] * len(col_headers))
+    cursor.executemany(f"INSERT INTO [{table_name}] VALUES ({placeholders})", data_rows)
 
 
 # =====================================================================
@@ -920,29 +940,151 @@ def chunk_text(text: str, chunk_size: int = 100, overlap: int = 20) -> list:
     if not text:
         return []
     words = text.split()
-    chunks = []
-    start = 0
+    chunks, start = [], 0
     while start < len(words):
-        end = start + chunk_size
-        chunks.append(" ".join(words[start:end]))
+        chunks.append(" ".join(words[start:start + chunk_size]))
         start += chunk_size - overlap
     return chunks
 
 
-if __name__ == "__main__":
-    pdf_file = "YH_HandBook.pdf"
-    db_file = "structural_steel_handbook.db"
+# =====================================================================
+# PIPELINE PROCESSOR
+# =====================================================================
 
-    if not os.path.exists(pdf_file):
-        print(f"[-] Error: {pdf_file} not found. Put the PDF in this directory and try again.")
+def convert_pdf_to_sqlite(pdf_path: str, db_path: str):
+    if not os.path.exists(pdf_path):
+        print(f"Error: File not found — {pdf_path}")
         sys.exit(1)
 
-    print("[*] Initializing Database...")
-    db_connection = init_db(db_file)
+    conn = init_db(db_path)
+    cursor = conn.cursor()
 
-    try:
-        process_pdf(pdf_file, db_connection)
-    except KeyboardInterrupt:
-        print("\n[-] Extraction interrupted by user.")
-    finally:
-        db_connection.close()
+    filesize  = os.path.getsize(pdf_path)
+    filename  = os.path.basename(pdf_path)
+    filepath  = os.path.abspath(pdf_path)
+
+    with pdfplumber.open(pdf_path) as pdf:
+        total_pages = len(pdf.pages)
+        pdf_meta    = pdf.metadata or {}
+        indexed_time = datetime.now().isoformat()
+
+        cursor.execute(
+            "INSERT INTO documents (filename, filepath, title, author, page_count, indexed_time, filesize) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (filename, filepath,
+             pdf_meta.get("Title", ""), pdf_meta.get("Author", ""),
+             total_pages, indexed_time, filesize),
+        )
+        document_id = cursor.lastrowid
+        conn.commit()
+
+        stats = {"pages": 0, "tables": 0, "errors": 0}
+
+        for i, plumber_page in enumerate(tqdm(pdf.pages, desc=f"Processing {filename}")):
+            page_num = i + 1
+
+            # ── 1. Text extraction & FTS index ──────────────────────────
+            try:
+                raw_text = plumber_page.extract_text() or ""
+                p_width  = float(plumber_page.width)
+                p_height = float(plumber_page.height)
+
+                if len(raw_text.strip()) < 20:
+                    cursor.execute(
+                        "INSERT INTO pdf_errors (document_id, page_number, error_message) VALUES (?, ?, ?)",
+                        (document_id, page_num, "OCR suggested: Scanned/low-text page."),
+                    )
+                    stats["errors"] += 1
+
+                cursor.execute(
+                    "INSERT INTO pdf_pages (document_id, page_number, width, height, raw_text) VALUES (?, ?, ?, ?, ?)",
+                    (document_id, page_num, p_width, p_height, raw_text),
+                )
+                page_id = cursor.lastrowid
+
+                cursor.execute(
+                    "INSERT INTO pdf_pages_fts (rowid, raw_text) VALUES (?, ?)",
+                    (page_id, raw_text),
+                )
+
+                for chunk_idx, chunk in enumerate(chunk_text(raw_text)):
+                    cursor.execute(
+                        "INSERT INTO pdf_chunks (page_id, chunk_index, chunk_text) VALUES (?, ?, ?)",
+                        (page_id, chunk_idx, chunk),
+                    )
+
+                stats["pages"] += 1
+
+            except Exception as exc:
+                cursor.execute(
+                    "INSERT INTO pdf_errors (document_id, page_number, error_message) VALUES (?, ?, ?)",
+                    (document_id, page_num, f"Text Extraction Error: {exc}"),
+                )
+                stats["errors"] += 1
+                conn.commit()
+                continue
+
+            # ── 2. Table extraction (Camelot → pdfplumber fallback) ─────
+            try:
+                raw_tables = extract_tables_for_page(pdf_path, plumber_page, page_num)
+
+                for t_idx, (raw_table, strategy) in enumerate(raw_tables):
+                    # clean_extracted_table runs:
+                    #   • compress_hierarchical_headers
+                    #   • forward_fill_merged_cells      ← NEW
+                    #   • rectangular normalisation
+                    cleaned_table = clean_extracted_table(raw_table, page_num)
+                    if not cleaned_table or len(cleaned_table) < 2:
+                        continue
+
+                    raw_headers = cleaned_table[0]
+                    col_headers = sanitize_column_headers(raw_headers)
+                    data_rows   = cleaned_table[1:]
+
+                    material, category, subcategory, prefix, standard_group = \
+                        classify_table_enhanced(raw_text, raw_headers, page_num)
+
+                    final_table_name = get_consolidated_table_name(cursor, prefix, col_headers)
+                    save_and_populate_table(conn, final_table_name, col_headers, data_rows)
+
+                    cursor.execute(
+                        "INSERT INTO extracted_tables_registry "
+                        "(document_id, page_number, table_index, table_name, "
+                        " material, category, subcategory, standard_group, "
+                        " extraction_strategy, num_rows, num_cols) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (document_id, page_num, t_idx, final_table_name,
+                         material, category, subcategory, standard_group,
+                         strategy, len(data_rows), len(col_headers)),
+                    )
+                    stats["tables"] += 1
+
+            except Exception as exc:
+                cursor.execute(
+                    "INSERT INTO pdf_errors (document_id, page_number, error_message) VALUES (?, ?, ?)",
+                    (document_id, page_num, f"Table Extraction Error: {exc}"),
+                )
+                stats["errors"] += 1
+
+            conn.commit()
+
+    print(f"\n[SUCCESS] Parsing complete.")
+    print(f"  Pages   : {stats['pages']}")
+    print(f"  Tables  : {stats['tables']}")
+    print(f"  Errors  : {stats['errors']}")
+
+
+# =====================================================================
+# ENTRY POINT
+# =====================================================================
+
+if __name__ == "__main__":
+    pdf_file_path  = "./YH_HandBook.pdf"
+    output_db_path = "./YH_HandBook.db"
+
+    print(f"Initializing parser — looking for {pdf_file_path} ...")
+    if os.path.exists(pdf_file_path):
+        convert_pdf_to_sqlite(pdf_file_path, output_db_path)
+    else:
+        print(f"[ERROR] '{pdf_file_path}' not found in the current directory.")
+        print("Verify the filename capitalisation and that it is in the same folder.")
