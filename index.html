@@ -1,244 +1,935 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Serverless Steel Handbook Query Engine</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-</head>
-
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased">
-<div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-
-    <!-- ── Header (always visible) ── -->
-    <header class="border-b border-slate-800 pb-6 mb-8">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                    Yick Hoe Steel Material Database Query
-                </h1>
-                <p class="text-sm text-slate-400 mt-1">
-                    JIS · KS · ASTM · BS · DIN — plates, sheets, chequered &amp; sections
-                </p>
-            </div>
-            <div class="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-lg p-3 text-xs">
-                <div>
-                    <span class="block text-slate-400 font-medium">Engine status</span>
-                    <span id="engine-status" class="inline-flex items-center text-amber-400 font-semibold">
-                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse mr-1.5"></span>
-                        Initializing…
-                    </span>
-                </div>
-                <div class="border-l border-slate-700 pl-3">
-                    <span class="block text-slate-400 font-medium">Query latency</span>
-                    <span id="query-time" class="text-emerald-400 font-mono font-bold">-- ms</span>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- ── Breadcrumb (shown on sub / table views) ── -->
-    <!--
-        data-depth="0" → hidden
-        data-depth="1" → show: Home > Category
-        data-depth="2" → show: Home > Category > DB
-    -->
-    <nav id="breadcrumb" data-depth="0" class="mb-6 text-sm text-slate-400
-        [&[data-depth='0']]:hidden flex items-center gap-2 flex-wrap">
-
-        <button id="btn-back-home"
-            class="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors">
-            ← All categories
-        </button>
-
-        <span class="[nav[data-depth='1']_&]:hidden text-slate-600">›</span>
-
-        <span id="bc-category" class="
-            [[data-depth='2']_&]:text-blue-400
-            [[data-depth='2']_&]:cursor-pointer
-            [[data-depth='2']_&]:hover:text-blue-300
-        "></span>
-
-        <!-- depth-2 only extras -->
-        <span class="[[data-depth='1']_&]:hidden text-slate-600">›</span>
-        <button id="btn-back-sub"
-            class="[[data-depth='1']_&]:hidden text-slate-600 hover:text-slate-300 transition-colors cursor-default">
-        </button>
-        <span id="bc-db" class="[[data-depth='1']_&]:hidden text-slate-200 font-medium"></span>
-    </nav>
-
-    <!-- ════════════════════════════════════════════════════
-         VIEW 1 — Landing: radial category wheel
-    ═════════════════════════════════════════════════════ -->
-    <div id="landing-view" class="flex flex-col items-center gap-6" style="display:flex;">
-
-        <div class="relative" style="width:360px; height:360px;">
-            <canvas id="wheel-canvas" width="360" height="360"
-                class="cursor-pointer absolute top-0 left-0"></canvas>
-
-            <!-- Centre disc -->
-            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-                        w-28 h-28 rounded-full bg-slate-800 border border-slate-600
-                        flex flex-col items-center justify-center text-center pointer-events-none">
-                <span id="wheel-center-label" class="text-xs text-slate-400 px-2 leading-tight">
-                    Select a category
-                </span>
-                <span id="wheel-center-name" class="text-sm font-semibold text-slate-100 px-2 mt-0.5 leading-tight"></span>
-            </div>
-        </div>
-
-        <p class="text-xs text-slate-500">Hover to preview · Click to select</p>
-    </div>
-
-    <!-- ════════════════════════════════════════════════════
-         VIEW 2 — Subcategory cards
-    ═════════════════════════════════════════════════════ -->
-    <div id="subcategory-view" class="flex flex-col gap-4" style="display:none;">
-        <h2 id="sub-header" class="text-lg font-semibold text-white"></h2>
-        <div id="sub-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            <!-- populated by JS -->
-        </div>
-    </div>
-
-    <!-- ════════════════════════════════════════════════════
-         VIEW 3 — Data table
-    ═════════════════════════════════════════════════════ -->
-    <div id="table-view" class="grid grid-cols-1 lg:grid-cols-4 gap-8" style="display:none;">
-
-        <!-- Sidebar controls -->
-        <aside class="lg:col-span-1 space-y-4">
-
-            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
-                <p id="db-description" class="text-xs text-slate-400 italic"></p>
-            </div>
-
-            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
-                <label for="table-select"
-                    class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                    Table
-                </label>
-                <select id="table-select" disabled
-                    class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200
-                           focus:outline-none focus:border-blue-500 disabled:opacity-50">
-                    <option>Loading…</option>
-                </select>
-            </div>
-
-            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm space-y-4">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Filters</h3>
-
-                <div id="thickness-filter-container" style="display:none;">
-                    <label for="thickness-filter" class="block text-sm text-slate-300 mb-1">
-                        Min thickness (mm)
-                    </label>
-                    <input type="number" id="thickness-filter" step="0.1" min="0" placeholder="e.g. 1.5"
-                        class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-200
-                               focus:outline-none focus:border-blue-500">
-                </div>
-
-                <div class="border-t border-slate-700 pt-4">
-                    <label for="quantity-multiplier" class="block text-sm text-slate-300 mb-1">
-                        Batch multiplier
-                    </label>
-                    <input type="number" id="quantity-multiplier" min="1" value="1"
-                        class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-200
-                               focus:outline-none focus:border-blue-500">
-                    <p class="text-[11px] text-slate-400 mt-1">Multiplies unit weights by quantity.</p>
-                </div>
-            </div>
-
-            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Raw SQL</span>
-                    <input type="checkbox" id="toggle-console"
-                        class="rounded border-slate-700 text-blue-600 focus:ring-0 bg-slate-950">
-                </div>
-                <textarea id="sql-console" disabled rows="4"
-                    class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 font-mono text-xs
-                           text-slate-400 focus:outline-none focus:border-blue-500 disabled:opacity-50
-                           transition-opacity"
-                    placeholder="SELECT * FROM table LIMIT 5;"></textarea>
-                <button id="run-sql-btn" disabled
-                    class="w-full mt-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white
-                           font-medium text-xs py-2 px-3 rounded-lg transition-colors">
-                    Execute
-                </button>
-            </div>
-        </aside>
-
-        <!-- Results panel -->
-        <main class="lg:col-span-3 space-y-4">
-            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-slate-400">
-                <span class="text-blue-400">Active query: </span>
-                <span id="active-query-text">—</span>
-            </div>
-
-            <div class="bg-slate-800 border border-slate-700 rounded-xl shadow-sm overflow-hidden">
-                <div class="overflow-x-auto w-full max-h-[600px]">
-                    <table class="w-full border-collapse text-left text-sm text-slate-300">
-                        <thead class="bg-slate-900 text-slate-200 sticky top-0 border-b border-slate-700 z-10">
-                            <tr id="table-headers">
-                                <th class="px-4 py-3">No data loaded yet.</th>
-                            </tr>
-                        </thead>
-                        <tbody id="table-body" class="divide-y divide-slate-700 bg-slate-800/50">
-                            <tr>
-                                <td class="px-4 py-8 text-center text-slate-500 font-medium">
-                                    Select a database from the category wheel to begin.
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </main>
-    </div>
-
-</div>
-
-<!-- Subcategory card styles (too dynamic for Tailwind JIT to catch) -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tactile 3D Deck</title>
 <style>
-.sub-card {
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: #0b0d12;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, "Inter", sans-serif;
+  }
+
+  .deck-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+    padding-bottom: 56px;
+  }
+
+  .search-wrap {
+    position: relative;
+    max-width: 420px;
+    margin: 0 auto 28px;
+    z-index: 600;
+  }
+
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    padding: 11px 16px;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .search-bar.focused {
+    background: rgba(255,255,255,0.065);
+    border-color: rgba(255,255,255,0.16);
+  }
+
+  .search-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: rgba(255,255,255,0.35);
+    transition: color 0.2s ease;
+  }
+  .search-bar.focused .search-icon {
+    color: rgba(255,255,255,0.55);
+  }
+
+  .search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 500;
+  }
+  .search-input::placeholder { color: rgba(255,255,255,0.35); }
+
+  .search-clear {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .search-clear.visible { display: flex; }
+
+  .db-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+  .db-status.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .db-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    flex-shrink: 0;
+    transition: background 0.4s ease;
+  }
+  .db-dot.connecting {
+    background: rgba(255,255,255,0.3);
+    animation: db-pulse 1.2s ease-in-out infinite;
+  }
+  .db-dot.ok  { background: #34d399; animation: none; }
+  .db-dot.err { background: #fb7185; animation: none; }
+
+  @keyframes db-pulse {
+    0%, 100% { opacity: 0.3; }
+    50%       { opacity: 1;   }
+  }
+
+  .db-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: rgba(255,255,255,0.3);
+    transition: color 0.4s ease;
+    white-space: nowrap;
+  }
+  .db-label.ok  { color: rgba(52,211,153,0.7);  }
+  .db-label.err { color: rgba(251,113,133,0.7); }
+
+  .db-divider {
+    width: 1px;
+    height: 12px;
+    background: rgba(255,255,255,0.07);
+    flex-shrink: 0;
+  }
+
+  .search-suggestions {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: #1a1d26;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    box-shadow: 0 16px 32px -10px rgba(0,0,0,0.65);
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateY(-6px);
+    transition: max-height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.22s ease, transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+    pointer-events: none;
+  }
+  .search-suggestions.open {
+    max-height: 340px;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .suggestion-list {
+    padding: 8px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    background: rgb(30 41 59 / 0.8);   /* slate-800/80 */
-    border: 1px solid rgb(51 65 85);    /* slate-700 */
-    border-radius: 12px;
-    padding: 1rem 1.1rem;
+    gap: 2px;
+    max-height: 324px;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .suggestion-list::-webkit-scrollbar { display: none; }
+
+  .suggestion-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 9px;
     cursor: pointer;
-    text-align: left;
-    transition: border-color 0.15s, background 0.15s;
+    transition: background 0.12s ease;
+  }
+  .suggestion-row:hover, .suggestion-row.active { background: rgba(255,255,255,0.1); }
+
+  .suggestion-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .suggestion-text { flex: 1; min-width: 0; }
+  .suggestion-sub {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .suggestion-cat {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 1px;
+  }
+
+  .suggestion-empty {
+    padding: 16px 12px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    text-align: center;
+  }
+
+  .deck-viewport {
+    perspective: 1400px;
     width: 100%;
-}
-.sub-card:hover {
-    border-color: rgb(59 130 246);      /* blue-500 */
-    background: rgb(30 41 59);
-}
-.sub-card-name {
+    max-width: 900px;
+    height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    touch-action: none;
+    outline: none;
+    transition: height 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .deck-container {
+    position: relative;
+    transform-style: preserve-3d;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tactile-btn {
+    position: absolute;
+    transform-style: preserve-3d;
+    width: 190px;
+    height: 260px;
+    cursor: pointer;
+    user-select: none;
+    backface-visibility: hidden;
+    will-change: transform, opacity;
+    transition: height 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .btn-3d-wrapper {
+    position: relative;
+    transform-style: preserve-3d;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .tactile-btn.pressed .btn-3d-wrapper {
+    transform: translate3d(0, 4px, -8px) !important;
+  }
+
+  .btn-bezel-back {
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    background: var(--card-shade);
+    transform: translateZ(-14px);
+  }
+
+  .btn-bezel-fill {
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    background: var(--card-shade);
+    transform: translateZ(-7px);
+  }
+
+  .flip-stage {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    transition: transform 0.5s cubic-bezier(0.4, 0.1, 0.2, 1);
+  }
+  .tactile-btn.flipped .flip-stage { transform: rotateY(180deg); }
+
+  .flip-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    backface-visibility: hidden;
+    box-sizing: border-box;
+    background: var(--card-gradient);
+    box-shadow:
+      0 14px 30px -10px rgba(0,0,0,0.55),
+      0 2px 6px rgba(0,0,0,0.3);
+  }
+
+  .flip-front {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 20px;
+  }
+
+  .btn-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .btn-icon-badge {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.16);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: #fff;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+  }
+
+  .btn-chevron {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.14);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+  }
+
+  .btn-label {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: #fff;
+  }
+
+  .flip-back {
+    transform: rotateY(180deg);
+    display: flex;
+    flex-direction: column;
+    padding: 18px;
+  }
+
+  .back-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+
+  .back-title {
     font-size: 14px;
     font-weight: 600;
-    color: rgb(226 232 240);            /* slate-200 */
-}
-.sub-card-desc {
+    color: rgba(255,255,255,0.9);
+    letter-spacing: 0.01em;
+  }
+
+  .back-close {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.14);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 11px;
-    color: rgb(100 116 139);            /* slate-500 */
-    line-height: 1.4;
-}
-.sub-card-file {
-    font-size: 10px;
-    font-family: monospace;
-    color: rgb(71 85 105);              /* slate-600 */
-    margin-top: 2px;
-}
+    flex-shrink: 0;
+  }
 
-/* breadcrumb depth visibility */
-nav[data-depth='1'] #btn-back-sub,
-nav[data-depth='1'] #bc-db,
-nav[data-depth='1'] .depth2-sep { display: none; }
+  .sub-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .sub-item {
+    background: rgba(255,255,255,0.13);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.92);
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+  }
+  .sub-item:hover { background: rgba(255,255,255,0.22); }
+  .sub-item.sub-item-highlight {
+    background: rgba(255,255,255,0.34);
+    box-shadow: 0 0 0 1.5px rgba(255,255,255,0.5);
+  }
+
+  .nav-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  .nav-arrow {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 17px;
+    transition: background 0.2s ease;
+  }
+  .nav-arrow:hover { background: rgba(255,255,255,0.14); }
+
+  .dots { display: flex; gap: 6px; }
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .dot.active { background: rgba(255,255,255,0.85); transform: scale(1.3); }
+
+  @media (max-width: 640px) {
+    .deck-viewport { height: 380px; touch-action: pan-x; }
+    .tactile-btn { width: 220px; height: 150px; }
+  }
 </style>
+</head>
+<body>
 
-<script src="main.js" type="module"></script>
+<div class="deck-wrap">
+  <div class="search-wrap" id="searchWrap">
+    <div class="search-bar" id="searchBar">
+      <span class="search-icon">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.4"/>
+          <line x1="10.4" y1="10.4" x2="13.5" y2="13.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <input type="text" class="search-input" id="searchInput" placeholder="Search categories" autocomplete="off" spellcheck="false">
+      <div class="search-clear" id="searchClear">&#10005;</div>
+      <div class="db-divider" id="dbDivider" style="opacity:0;transition:opacity 0.3s ease;"></div>
+      <div class="db-status" id="dbStatus">
+        <div class="db-dot connecting" id="dbDot"></div>
+        <span class="db-label" id="dbLabel">—</span>
+      </div>
+    </div>
+    <div class="search-suggestions" id="searchSuggestions">
+      <div class="suggestion-list" id="suggestionList"></div>
+    </div>
+  </div>
+
+  <div class="deck-viewport" id="deckInteractiveArea" tabindex="0">
+    <div class="deck-container" id="tactileDeck"></div>
+  </div>
+  <div class="nav-row">
+    <button class="nav-arrow" id="navLeft" aria-label="Previous">&#8249;</button>
+    <div class="dots" id="dots"></div>
+    <button class="nav-arrow" id="navRight" aria-label="Next">&#8250;</button>
+  </div>
+</div>
+
+<script>
+const THEMES = [
+  { gradient: "linear-gradient(160deg, #6366f1 0%, #3730a3 100%)", shade: "#2e2a7a", dot: "#818cf8" },
+  { gradient: "linear-gradient(160deg, #10b981 0%, #065f46 100%)", shade: "#054d3a", dot: "#34d399" },
+  { gradient: "linear-gradient(160deg, #f59e0b 0%, #b45309 100%)", shade: "#8a3f06", dot: "#fbbf24" },
+  { gradient: "linear-gradient(160deg, #f43f5e 0%, #9f1239 100%)", shade: "#7d0f2f", dot: "#fb7185" },
+  { gradient: "linear-gradient(160deg, #8b5cf6 0%, #4c1d95 100%)", shade: "#3b1578", dot: "#a78bfa" },
+  { gradient: "linear-gradient(160deg, #06b6d4 0%, #0e7490 100%)", shade: "#0a5a6e", dot: "#22d3ee" },
+];
+
+const CATEGORY_ICONS = [
+  "&#9636;",   // General Information  → square
+  "&#9650;",   // Mild Steel           → triangle
+  "&#9737;",   // Stainless Steel      → sun/circle
+  "&#9881;",   // Alloy & Machinery    → gear
+  "&#10022;",  // Non-Ferrous          → star
+  "&#8734;",   // Appendix             → infinity
+];
+
+let items = [];
+let N = 0;
+
+async function checkDb() {
+  const dot   = document.getElementById('dbDot');
+  const label = document.getElementById('dbLabel');
+  const status = document.getElementById('dbStatus');
+  const divider = document.getElementById('dbDivider');
+
+  // Show indicator
+  status.classList.add('visible');
+  divider.style.opacity = '1';
+  dot.className = 'db-dot connecting';
+  label.className = 'db-label';
+  label.textContent = '—';
+
+  const t0 = performance.now();
+  try {
+    const res = await fetch('./database/handbook_steel.db', { method: 'HEAD', cache: 'no-store' });
+    const ms = Math.round(performance.now() - t0);
+    if (!res.ok && res.status !== 405) throw new Error(`HTTP ${res.status}`);
+    dot.className = 'db-dot ok';
+    label.className = 'db-label ok';
+    label.textContent = `${ms}ms`;
+  } catch {
+    const ms = Math.round(performance.now() - t0);
+    dot.className = 'db-dot err';
+    label.className = 'db-label err';
+    label.textContent = `Fail ${ms}ms`;
+  }
+}
+
+async function loadData() {
+  try {
+    const res = await fetch('./database/databases.json');
+    if (!res.ok) throw new Error('Failed to fetch databases.json');
+    const data = await res.json();
+    items = data.catalog.map((cat, i) => ({
+      text: cat.category,
+      icon: CATEGORY_ICONS[i % CATEGORY_ICONS.length],
+      theme: i % THEMES.length,
+      subs: cat.items.map(item => item.name),
+      keywords: cat.items.flatMap(item => [item.name, ...(item.keywords || [])]),
+    }));
+  } catch (err) {
+    console.error('Could not load databases.json:', err);
+    // Fallback: single error card
+    items = [{
+      text: "Load Error",
+      icon: "&#9888;",
+      theme: 3,
+      subs: ["Could not load databases.json"],
+      keywords: [],
+    }];
+  }
+  N = items.length;
+}
+const curveAngle = 24;
+const zDepthStep = 110;
+const spacingValue = 150;
+const BASE_HEIGHT_DESKTOP = 260;
+const BASE_HEIGHT_MOBILE = 150;
+const MAX_CARD_HEIGHT = 440;
+const ROW_HEIGHT = 40;
+const HEADER_HEIGHT = 44;
+const VPAD = 60;
+
+let position = 0;
+let dragging = false;
+let dragMoved = false;
+let dragStart = 0;
+let dragStartPos = 0;
+let raf = null;
+let isMobile = window.matchMedia('(max-width: 640px)').matches;
+let flippedIndex = null;
+
+const container = document.getElementById('tactileDeck');
+const viewport = document.getElementById('deckInteractiveArea');
+const dotsEl = document.getElementById('dots');
+const searchInput = document.getElementById('searchInput');
+const searchBar = document.getElementById('searchBar');
+const searchClear = document.getElementById('searchClear');
+const searchSuggestions = document.getElementById('searchSuggestions');
+const suggestionList = document.getElementById('suggestionList');
+
+async function init() {
+  await loadData();
+  checkDb();
+
+  items.forEach(() => {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    dotsEl.appendChild(d);
+  });
+
+window.matchMedia('(max-width: 640px)').addEventListener('change', (e) => {
+  isMobile = e.matches;
+  render();
+});
+
+function shortestOffset(index, pos) {
+  let raw = index - pos;
+  raw = ((raw % N) + N) % N;
+  if (raw > N / 2) raw -= N;
+  return raw;
+}
+
+function cardHeightFor(subsCount) {
+  const base = isMobile ? BASE_HEIGHT_MOBILE : BASE_HEIGHT_DESKTOP;
+  const needed = HEADER_HEIGHT + subsCount * ROW_HEIGHT + VPAD;
+  return Math.max(base, Math.min(needed, MAX_CARD_HEIGHT));
+}
+
+function unflip() {
+  if (flippedIndex === null) return;
+  flippedIndex = null;
+  viewport.style.height = '';
+  render();
+}
+
+function openFlip(index) {
+  flippedIndex = index;
+  viewport.style.height = cardHeightFor(items[index].subs.length) + VPAD + 'px';
+  render();
+}
+
+function render() {
+  container.innerHTML = '';
+  const rounded = ((Math.round(position) % N) + N) % N;
+
+  [...dotsEl.children].forEach((d, i) => d.classList.toggle('active', i === rounded));
+
+  items.forEach((item, index) => {
+    const offset = shortestOffset(index, position);
+    const absOffset = Math.abs(offset);
+    if (absOffset > 3) return;
+
+    const theme = THEMES[item.theme % THEMES.length];
+    const primaryPos = offset * spacingValue;
+    const zPos = -absOffset * zDepthStep;
+    const rotAngle = -offset * curveAngle;
+    const scale = Math.max(1 - absOffset * 0.16, 0.4);
+    const isCenter = index === rounded && absOffset < 0.5;
+    const isFlipped = isCenter && flippedIndex === index;
+
+    const btn = document.createElement('div');
+    btn.className = 'tactile-btn' + (isCenter ? ' center' : '') + (isFlipped ? ' flipped' : '');
+    btn.style.setProperty('--card-gradient', theme.gradient);
+    btn.style.setProperty('--card-shade', theme.shade);
+
+    if (isFlipped) {
+      const h = cardHeightFor(item.subs.length);
+      btn.style.height = h + 'px';
+    }
+
+    const transform = isMobile
+      ? `translateY(${primaryPos}px) translateZ(${zPos}px) rotateX(${-rotAngle}deg) scale(${scale})`
+      : `translateX(${primaryPos}px) translateZ(${zPos}px) rotateY(${rotAngle}deg) scale(${scale})`;
+    btn.style.transform = transform;
+
+    btn.style.zIndex = isFlipped ? 500 : Math.round(100 - absOffset * 10);
+    btn.style.opacity = Math.max(1 - absOffset * 0.32, 0);
+    btn.style.pointerEvents = absOffset > 3 ? 'none' : 'auto';
+    btn.style.filter = isCenter ? 'none' : `brightness(${Math.max(1 - absOffset * 0.2, 0.4)})`;
+
+    const subsHtml = item.subs.map(s => `<div class="sub-item" data-sub="${s}">${s}</div>`).join('');
+
+    btn.innerHTML = `
+      <div class="btn-3d-wrapper">
+        <div class="btn-bezel-back"></div>
+        <div class="btn-bezel-fill"></div>
+        <div class="flip-stage">
+          <div class="flip-face flip-front">
+            <div class="btn-top-row">
+              <div class="btn-icon-badge">${item.icon}</div>
+              <div class="btn-chevron">&#9662;</div>
+            </div>
+            <div class="btn-label">${item.text}</div>
+          </div>
+          <div class="flip-face flip-back">
+            <div class="back-header">
+              <div class="back-title">${item.text}</div>
+              <div class="back-close">&#10005;</div>
+            </div>
+            <div class="sub-list">${subsHtml}</div>
+          </div>
+        </div>
+      </div>`;
+
+    btn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      btn.classList.add('pressed');
+    });
+    const release = () => btn.classList.remove('pressed');
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointerleave', release);
+
+    btn.querySelectorAll('.sub-item').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('Triggered sub-action:', item.text, '->', el.dataset.sub);
+      });
+    });
+
+    const backClose = btn.querySelector('.back-close');
+    if (backClose) {
+      backClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        unflip();
+      });
+    }
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (dragMoved) return;
+      if (absOffset < 0.4) {
+        if (flippedIndex === index) {
+          unflip();
+        } else {
+          openFlip(index);
+        }
+      } else {
+        unflip();
+        goTo(index);
+      }
+    });
+
+    container.appendChild(btn);
+  });
+}
+
+function goTo(index, onComplete) {
+  const offset = shortestOffset(index, position);
+  animateTo(position + offset, onComplete);
+}
+
+function animateTo(target, onComplete) {
+  cancelAnimationFrame(raf);
+  function step() {
+    const diff = target - position;
+    if (Math.abs(diff) < 0.001) {
+      position = target;
+      render();
+      if (onComplete) onComplete();
+      return;
+    }
+    position += diff * 0.2;
+    render();
+    raf = requestAnimationFrame(step);
+  }
+  step();
+}
+
+function settle() {
+  animateTo(Math.round(position));
+}
+
+viewport.addEventListener('pointerdown', (e) => {
+  dragging = true;
+  dragMoved = false;
+  dragStart = isMobile ? e.clientY : e.clientX;
+  dragStartPos = position;
+  cancelAnimationFrame(raf);
+  viewport.setPointerCapture(e.pointerId);
+});
+
+viewport.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const current = isMobile ? e.clientY : e.clientX;
+  const delta = current - dragStart;
+  if (Math.abs(delta) > 6) {
+    dragMoved = true;
+    if (flippedIndex !== null) unflip();
+  }
+  position = dragStartPos - delta / spacingValue;
+  render();
+});
+
+function endDrag() {
+  if (!dragging) return;
+  dragging = false;
+  settle();
+}
+viewport.addEventListener('pointerup', endDrag);
+viewport.addEventListener('pointercancel', endDrag);
+
+viewport.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  cancelAnimationFrame(raf);
+  if (flippedIndex !== null) unflip();
+  position += e.deltaY * 0.0025;
+  render();
+  clearTimeout(viewport._wheelTimer);
+  viewport._wheelTimer = setTimeout(settle, 120);
+}, { passive: false });
+
+viewport.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') unflip();
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { unflip(); animateTo(Math.round(position) + 1); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { unflip(); animateTo(Math.round(position) - 1); }
+});
+
+document.getElementById('navLeft').addEventListener('click', () => { unflip(); animateTo(Math.round(position) - 1); });
+document.getElementById('navRight').addEventListener('click', () => { unflip(); animateTo(Math.round(position) + 1); });
+
+// ---------- Search ----------
+  const searchWrapEl = document.getElementById('searchWrap');
+  const searchIndex = [];
+
+  document.addEventListener('click', (e) => {
+    if (flippedIndex !== null && !viewport.contains(e.target)) unflip();
+    if (!searchWrapEl.contains(e.target)) closeSuggestions();
+  });
+  items.forEach((item, itemIndex) => {
+    item.subs.forEach(sub => {
+      searchIndex.push({ itemIndex, category: item.text, sub, theme: item.theme, keywords: item.keywords || [] });
+    });
+  });
+
+let activeSuggestion = -1;
+let currentMatches = [];
+
+function closeSuggestions() {
+  searchSuggestions.classList.remove('open');
+  activeSuggestion = -1;
+}
+
+function highlightSub(itemIndex, sub) {
+  const el = container.querySelector(`.tactile-btn.flipped .sub-item[data-sub="${sub}"]`);
+  if (!el) return;
+  el.classList.add('sub-item-highlight');
+  setTimeout(() => el.classList.remove('sub-item-highlight'), 1400);
+}
+
+function selectMatch(match) {
+  searchInput.value = '';
+  searchClear.classList.remove('visible');
+  closeSuggestions();
+  searchInput.blur();
+  unflip();
+  goTo(match.itemIndex, () => {
+    openFlip(match.itemIndex);
+    highlightSub(match.itemIndex, match.sub);
+  });
+}
+
+function renderSuggestions(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    closeSuggestions();
+    return;
+  }
+  currentMatches = searchIndex.filter(m =>
+    m.sub.toLowerCase().includes(q) ||
+    m.category.toLowerCase().includes(q) ||
+    (m.keywords || []).some(k => k.toLowerCase().includes(q))
+  ).slice(0, 8);
+
+  activeSuggestion = -1;
+  suggestionList.innerHTML = '';
+
+  if (currentMatches.length === 0) {
+    suggestionList.innerHTML = '<div class="suggestion-empty">No matches</div>';
+  } else {
+    currentMatches.forEach((match, i) => {
+      const row = document.createElement('div');
+      row.className = 'suggestion-row';
+      row.dataset.index = i;
+      row.innerHTML = `
+        <div class="suggestion-dot" style="background:${THEMES[match.theme % THEMES.length].dot}"></div>
+        <div class="suggestion-text">
+          <div class="suggestion-sub">${match.sub}</div>
+          <div class="suggestion-cat">${match.category}</div>
+        </div>`;
+      row.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        selectMatch(match);
+      });
+      suggestionList.appendChild(row);
+    });
+  }
+  searchSuggestions.classList.add('open');
+}
+
+function updateActiveHighlight() {
+  [...suggestionList.children].forEach((row, i) => {
+    row.classList.toggle('active', i === activeSuggestion);
+  });
+}
+
+searchInput.addEventListener('input', () => {
+  searchClear.classList.toggle('visible', searchInput.value.length > 0);
+  renderSuggestions(searchInput.value);
+});
+
+searchInput.addEventListener('focus', () => {
+  searchBar.classList.add('focused');
+  if (searchInput.value.trim()) renderSuggestions(searchInput.value);
+});
+
+searchInput.addEventListener('blur', () => {
+  searchBar.classList.remove('focused');
+});
+
+searchInput.addEventListener('keydown', (e) => {
+  if (!searchSuggestions.classList.contains('open') || currentMatches.length === 0) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    activeSuggestion = Math.min(activeSuggestion + 1, currentMatches.length - 1);
+    updateActiveHighlight();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    activeSuggestion = Math.max(activeSuggestion - 1, 0);
+    updateActiveHighlight();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const pick = activeSuggestion >= 0 ? currentMatches[activeSuggestion] : currentMatches[0];
+    if (pick) selectMatch(pick);
+  } else if (e.key === 'Escape') {
+    closeSuggestions();
+    searchInput.blur();
+  }
+});
+
+searchClear.addEventListener('click', () => {
+  searchInput.value = '';
+  searchClear.classList.remove('visible');
+  closeSuggestions();
+  searchInput.focus();
+});
+
+  render();
+} // end init()
+
+init();
+</script>
+
 </body>
 </html>
