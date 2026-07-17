@@ -340,6 +340,7 @@
       box-shadow:
         0 14px 30px -10px rgba(0, 0, 0, 0.55),
         0 2px 6px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
     }
 
     .flip-front {
@@ -397,7 +398,8 @@
       display: flex;
       flex-direction: column;
       padding: 18px;
-      overflow: hidden;
+      /* Fill the face exactly — sub-list scrolls within this */
+      height: 100%;
     }
 
     .back-header {
@@ -794,15 +796,9 @@
             });
           });
 
-          // Allow wheel events inside sub-list to scroll it, not the deck
+          // Touch passthrough — let sub-list scroll on mobile without triggering deck drag
           const subListEl = btn.querySelector('.sub-list');
           if (subListEl) {
-            subListEl.addEventListener('wheel', (e) => {
-              e.stopPropagation();
-              // Let the browser handle natural scrolling within the list
-            }, { passive: true });
-
-            // Touch scroll passthrough
             subListEl.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
             subListEl.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: true });
           }
@@ -902,23 +898,29 @@
       let wheelSettleTimer = null;
 
       viewport.addEventListener('wheel', (e) => {
-        e.preventDefault();
-
-        // If a card is flipped and wheel is over the sub-list, let it scroll naturally
+        // If a card is flipped, check if the scroll target is inside the sub-list.
+        // Must check BEFORE preventDefault so native scroll can work.
         if (flippedIndex !== null) {
           const subList = container.querySelector('.tactile-btn.flipped .sub-list');
-          if (subList && subList.contains(e.target)) return;
+          if (subList && subList.contains(e.target)) {
+            // Let the browser handle sub-list scrolling natively — don't preventDefault
+            e.stopPropagation();
+            return;
+          }
+          // Scrolling outside the sub-list while card is open: close card, then deck scrolls
           unflip();
         }
+
+        e.preventDefault();
 
         cancelAnimationFrame(raf);
         cancelAnimationFrame(wheelRaf);
         clearTimeout(wheelSettleTimer);
 
-        // Normalise delta — trackpads send small floats, wheels send 100/120
+        // Normalise delta — trackpads send small floats, mouse wheels send 100/120
         const normalized = Math.abs(e.deltaY) > 50
-          ? Math.sign(e.deltaY) * 0.006   // mouse wheel: step by discrete amount
-          : e.deltaY * 0.0018;             // trackpad: fine-grained
+          ? Math.sign(e.deltaY) * 0.006   // discrete mouse wheel
+          : e.deltaY * 0.0018;             // trackpad fine-grained
 
         wheelVelocity += normalized;
 
@@ -943,8 +945,22 @@
         if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { unflip(); animateTo(Math.round(position) - 1); }
       });
 
-      document.getElementById('navLeft').addEventListener('click', () => { unflip(); animateTo(Math.round(position) - 1); });
-      document.getElementById('navRight').addEventListener('click', () => { unflip(); animateTo(Math.round(position) + 1); });
+      document.getElementById('navLeft').addEventListener('click', () => {
+        cancelAnimationFrame(raf);
+        cancelAnimationFrame(wheelRaf);
+        clearTimeout(wheelSettleTimer);
+        wheelVelocity = 0;
+        unflip();
+        animateTo(Math.round(position) - 1);
+      });
+      document.getElementById('navRight').addEventListener('click', () => {
+        cancelAnimationFrame(raf);
+        cancelAnimationFrame(wheelRaf);
+        clearTimeout(wheelSettleTimer);
+        wheelVelocity = 0;
+        unflip();
+        animateTo(Math.round(position) + 1);
+      });
 
       // ---------- Search ----------
       const searchWrapEl = document.getElementById('searchWrap');
