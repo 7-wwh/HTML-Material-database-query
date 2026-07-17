@@ -9,12 +9,14 @@
     html,
     body {
       margin: 0;
-      min-height: 100%;
+      height: 100%;
+      overflow: hidden;
       background: #0b0d12;
       display: flex;
       align-items: center;
       justify-content: center;
       font-family: -apple-system, "Inter", sans-serif;
+      overscroll-behavior: none;
     }
 
     .deck-wrap {
@@ -518,14 +520,45 @@
     }
 
     @media (max-width: 640px) {
+
+      html,
+      body {
+        height: 100%;
+        height: 100dvh;
+      }
+
+      .deck-wrap {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        height: 100dvh;
+        padding: 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        box-sizing: border-box;
+      }
+
+      .search-wrap {
+        flex-shrink: 0;
+        max-width: 100%;
+        margin: 16px 16px 12px;
+      }
+
       .deck-viewport {
-        height: 380px;
+        flex: 1 1 0;
+        min-height: 0;
+        height: auto !important;
         touch-action: pan-x;
       }
 
       .tactile-btn {
-        width: 220px;
-        height: 150px;
+        width: 200px;
+        height: 240px;
+      }
+
+      .nav-row {
+        flex-shrink: 0;
+        position: static;
+        padding: 12px 0 16px;
       }
     }
   </style>
@@ -647,8 +680,8 @@
     const zDepthStep = 110;
     const spacingValue = 150;
     const BASE_HEIGHT_DESKTOP = 260;
-    const BASE_HEIGHT_MOBILE = 150;
-    const MAX_CARD_HEIGHT = 440;
+    const BASE_HEIGHT_MOBILE = 240;
+    const MAX_CARD_HEIGHT = 480;
     const ROW_HEIGHT = 40;
     const HEADER_HEIGHT = 44;
     const VPAD = 60;
@@ -699,16 +732,18 @@
         return Math.max(base, Math.min(needed, MAX_CARD_HEIGHT));
       }
 
+      function openFlip(index) {
+        flippedIndex = index;
+        if (!isMobile) {
+          viewport.style.height = cardHeightFor(items[index].subs.length) + VPAD + 'px';
+        }
+        render();
+      }
+
       function unflip() {
         if (flippedIndex === null) return;
         flippedIndex = null;
         viewport.style.height = '';
-        render();
-      }
-
-      function openFlip(index) {
-        flippedIndex = index;
-        viewport.style.height = cardHeightFor(items[index].subs.length) + VPAD + 'px';
         render();
       }
 
@@ -737,13 +772,15 @@
           btn.style.setProperty('--card-shade', theme.shade);
 
           if (isFlipped) {
-            const h = cardHeightFor(item.subs.length);
-            btn.style.height = h + 'px';
+            if (isMobile) {
+              // Fill the flex viewport on mobile
+              btn.style.height = (viewport.clientHeight - 32) + 'px';
+            } else {
+              btn.style.height = cardHeightFor(item.subs.length) + 'px';
+            }
           }
 
-          const transform = isMobile
-            ? `translateY(${primaryPos}px) translateZ(${zPos}px) rotateX(${-rotAngle}deg) scale(${scale})`
-            : `translateX(${primaryPos}px) translateZ(${zPos}px) rotateY(${rotAngle}deg) scale(${scale})`;
+          const transform = `translateX(${primaryPos}px) translateZ(${zPos}px) rotateY(${rotAngle}deg) scale(${scale})`;
           btn.style.transform = transform;
 
           btn.style.zIndex = isFlipped ? 500 : Math.round(100 - absOffset * 10);
@@ -867,7 +904,7 @@
       viewport.addEventListener('pointerdown', (e) => {
         dragging = true;
         dragMoved = false;
-        dragStart = isMobile ? e.clientY : e.clientX;
+        dragStart = e.clientX;
         dragStartPos = position;
         cancelAnimationFrame(raf);
         viewport.setPointerCapture(e.pointerId);
@@ -875,8 +912,7 @@
 
       viewport.addEventListener('pointermove', (e) => {
         if (!dragging) return;
-        const current = isMobile ? e.clientY : e.clientX;
-        const delta = current - dragStart;
+        const delta = e.clientX - dragStart;
         if (Math.abs(delta) > 6) {
           dragMoved = true;
           if (flippedIndex !== null) unflip();
