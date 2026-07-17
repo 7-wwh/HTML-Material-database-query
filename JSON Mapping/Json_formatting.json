@@ -1,0 +1,1787 @@
+{
+    "$schema": "https://yickhoe.com/firestore-schema/v2",
+    "$meta": {
+        "source": "Yick Hoe Group of Company – Structural Steel Handbook",
+        "version": "2.0.0",
+        "philosophy": [
+            "One collection per product family — not one universal 'products' collection.",
+            "Flat documents: dimensions, section properties, and mechanical properties are embedded fields, not sub-collections. They are always read together.",
+            "Sub-collections are used ONLY for safe_load tables because they are large (up to 13 span entries × multiple grades) and often queried independently.",
+            "The _meta block is lean: created_at, updated_at, active, handbook_page. Nothing else.",
+            "All numeric values stored in SI base units (mm, cm, cm², cm³, cm⁴, kg/m, kN, MPa). Imperial fields suffixed _in or _lb.",
+            "Every document has a 'keywords' string array for array-contains-any full-text workaround in Firestore.",
+            "Composite indexes are declared for every cross-field query pattern."
+        ]
+    },
+    "collections": {
+        "structural_beams": {
+            "_description": "I-Beams, Universal Beams, Universal Columns, Light Beams, Joists. One document per section size + mass per metre.",
+            "_firestore_path": "structural_beams/{beamId}",
+            "_example_id": "UB-203x133-25",
+            "_pattern": "<TYPE>-<DEPTHxWIDTH>-<MASS>",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 34
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "I_BEAM",
+                        "UNIVERSAL_BEAM",
+                        "UNIVERSAL_COLUMN",
+                        "LIGHT_BEAM",
+                        "JOIST"
+                    ],
+                    "indexed": true
+                },
+                "section_label": {
+                    "type": "string",
+                    "example": "203x133",
+                    "indexed": true
+                },
+                "display_name": {
+                    "type": "string",
+                    "example": "203 x 133 UB 25 kg/m"
+                },
+                "mass_per_metre_kg": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "dimensions": {
+                    "_note": "Embedded — always read with the document.",
+                    "depth_mm": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "width_mm": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "flange_thickness_mm": {
+                        "type": "number"
+                    },
+                    "web_thickness_mm": {
+                        "type": "number"
+                    },
+                    "corner_radius_mm": {
+                        "type": "number"
+                    },
+                    "section_area_cm2": {
+                        "type": "number"
+                    },
+                    "depth_in": {
+                        "type": "number"
+                    },
+                    "width_in": {
+                        "type": "number"
+                    },
+                    "flange_thickness_in": {
+                        "type": "number"
+                    },
+                    "web_thickness_in": {
+                        "type": "number"
+                    }
+                },
+                "section_properties": {
+                    "_note": "Embedded — structural engineers always need this alongside dimensions.",
+                    "Ix_cm4": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "Iy_cm4": {
+                        "type": "number"
+                    },
+                    "ix_cm": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "iy_cm": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "Zx_cm3": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "Zy_cm3": {
+                        "type": "number"
+                    },
+                    "Ix_in4": {
+                        "type": "number"
+                    },
+                    "Iy_in4": {
+                        "type": "number"
+                    },
+                    "Zx_in3": {
+                        "type": "number"
+                    },
+                    "Zy_in3": {
+                        "type": "number"
+                    }
+                },
+                "grades_available": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "S275JR",
+                        "S355JR",
+                        "S355J2"
+                    ],
+                    "indexed": true
+                },
+                "standards": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "EN 10025",
+                        "BS 4360",
+                        "ASTM A36"
+                    ],
+                    "indexed": true
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "UB",
+                        "universal beam",
+                        "203x133",
+                        "grade 43",
+                        "S275",
+                        "structural beam",
+                        "grade 50"
+                    ],
+                    "indexed": true
+                }
+            },
+            "_sub_collections": {
+                "safe_loads": {
+                    "_firestore_path": "structural_beams/{beamId}/safe_loads/{gradeId}",
+                    "_example_id": "GRADE_43",
+                    "_document": {
+                        "steel_grade": {
+                            "type": "string",
+                            "enum": [
+                                "GRADE_43",
+                                "GRADE_50",
+                                "GRADE_55"
+                            ],
+                            "indexed": true
+                        },
+                        "bending_stress_mpa": {
+                            "type": "number"
+                        },
+                        "critical_span_Lc_m": {
+                            "type": "number",
+                            "indexed": true
+                        },
+                        "spans": {
+                            "type": "map",
+                            "_note": "Keyed by span in metres as a string ('2.0', '2.5' …). Map is faster than array for point lookups by span.",
+                            "example": {
+                                "2.0": {
+                                    "load_kN": 153,
+                                    "deflection_coeff": 112.0,
+                                    "flag": "ORDINARY"
+                                },
+                                "2.5": {
+                                    "load_kN": 122,
+                                    "deflection_coeff": 71.68,
+                                    "flag": "ORDINARY"
+                                },
+                                "3.0": {
+                                    "load_kN": 102,
+                                    "deflection_coeff": 49.78,
+                                    "flag": "ITALIC"
+                                },
+                                "3.5": {
+                                    "load_kN": 87,
+                                    "deflection_coeff": 36.57,
+                                    "flag": "ITALIC"
+                                },
+                                "4.0": {
+                                    "load_kN": 77,
+                                    "deflection_coeff": 28.00,
+                                    "flag": "ITALIC"
+                                },
+                                "4.5": {
+                                    "load_kN": 68,
+                                    "deflection_coeff": 22.12,
+                                    "flag": "ITALIC"
+                                },
+                                "5.0": {
+                                    "load_kN": 61,
+                                    "deflection_coeff": 17.92,
+                                    "flag": "ITALIC"
+                                },
+                                "5.5": {
+                                    "load_kN": 56,
+                                    "deflection_coeff": 14.81,
+                                    "flag": "ITALIC"
+                                },
+                                "6.0": {
+                                    "load_kN": 51,
+                                    "deflection_coeff": 12.44,
+                                    "flag": "ITALIC"
+                                }
+                            },
+                            "flag_legend": {
+                                "BOLD": "Web buckling governs — stiffener may be needed",
+                                "ITALIC": "Web OK + deflection within span/360",
+                                "ORDINARY": "Deflection exceeds span/360 — check required",
+                                "SHEAR_CONTROLLED": "Load limited by web shear, not bending"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "piles": {
+            "_description": "Bearing piles and sheet steel piles. Separate from structural_beams because dimension schema differs (equal flange & web thickness).",
+            "_firestore_path": "piles/{pileId}",
+            "_example_id": "HP-203x203-45",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 52
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "BEARING_PILE",
+                        "SHEET_PILE"
+                    ],
+                    "indexed": true
+                },
+                "section_label": {
+                    "type": "string",
+                    "example": "8x8",
+                    "indexed": true
+                },
+                "mass_per_metre_kg": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "dimensions": {
+                    "depth_mm": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "width_mm": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "flange_and_web_thickness_mm": {
+                        "type": "number"
+                    },
+                    "corner_radius_mm": {
+                        "type": "number"
+                    },
+                    "section_area_cm2": {
+                        "type": "number"
+                    }
+                },
+                "grades_available": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "standards": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                }
+            }
+        },
+        "hollow_sections": {
+            "_description": "Cold-formed and hot-formed SHS, RHS, CHS. Shape and formation are the key filter axes.",
+            "_firestore_path": "hollow_sections/{hsId}",
+            "_example_id": "CF-SHS-50x50x3",
+            "_pattern": "<FORMATION>-<SHAPE>-<SIZExTHICKNESS>",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 90
+                },
+                "formation": {
+                    "type": "string",
+                    "enum": [
+                        "COLD_FORMED",
+                        "HOT_FORMED"
+                    ],
+                    "indexed": true
+                },
+                "shape": {
+                    "type": "string",
+                    "enum": [
+                        "SHS",
+                        "RHS",
+                        "CHS"
+                    ],
+                    "indexed": true
+                },
+                "size_label": {
+                    "type": "string",
+                    "example": "50x50x3",
+                    "indexed": true
+                },
+                "mass_per_metre_kg": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "dimensions": {
+                    "width_mm": {
+                        "type": "number",
+                        "indexed": true,
+                        "description": "Width A (SHS/RHS) or OD (CHS)"
+                    },
+                    "height_mm": {
+                        "type": "number",
+                        "description": "Height B for RHS (null for SHS/CHS)"
+                    },
+                    "wall_thickness_mm": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "corner_radius_mm": {
+                        "type": "number"
+                    },
+                    "section_area_cm2": {
+                        "type": "number"
+                    }
+                },
+                "section_properties": {
+                    "Ix_cm4": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "Iy_cm4": {
+                        "type": "number"
+                    },
+                    "ix_cm": {
+                        "type": "number"
+                    },
+                    "iy_cm": {
+                        "type": "number"
+                    },
+                    "Zx_cm3": {
+                        "type": "number"
+                    },
+                    "Zy_cm3": {
+                        "type": "number"
+                    }
+                },
+                "grades_available": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "standards": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "SHS",
+                        "square hollow section",
+                        "cold formed",
+                        "RHS",
+                        "rectangular",
+                        "CHS",
+                        "circular"
+                    ],
+                    "indexed": true
+                }
+            }
+        },
+        "pipes": {
+            "_description": "API ERW pipes, seamless pipes, standard BS/JIS/ASTM pipes. OD and wall thickness are the primary search axes.",
+            "_firestore_path": "pipes/{pipeId}",
+            "_example_id": "API-ERW-219.1x6.35",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 66
+                },
+                "pipe_type": {
+                    "type": "string",
+                    "enum": [
+                        "API_ERW",
+                        "API_SEAMLESS",
+                        "BS_1387_LIGHT",
+                        "BS_1387_MEDIUM",
+                        "BS_1387_HEAVY",
+                        "JIS_G3444",
+                        "ASTM_A53",
+                        "ASTM_A500",
+                        "OTHER"
+                    ],
+                    "indexed": true
+                },
+                "nominal_bore_inch": {
+                    "type": "string",
+                    "example": "8\"",
+                    "indexed": true
+                },
+                "nominal_bore_mm": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "outside_diameter_mm": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "wall_thickness_mm": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "inside_diameter_mm": {
+                    "type": "number"
+                },
+                "mass_per_metre_kg": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "section_area_cm2": {
+                    "type": "number"
+                },
+                "Ix_cm4": {
+                    "type": "number"
+                },
+                "Zx_cm3": {
+                    "type": "number"
+                },
+                "schedule": {
+                    "type": "string",
+                    "example": "SCH40",
+                    "indexed": true
+                },
+                "grade": {
+                    "type": "string",
+                    "indexed": true
+                },
+                "standards": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                }
+            }
+        },
+        "channels": {
+            "_description": "Plain channels, lipped (C) channels, DIN channels, U-channels, inch-series channels.",
+            "_firestore_path": "channels/{channelId}",
+            "_example_id": "PLAIN-150x65-2.3t",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 126
+                },
+                "channel_type": {
+                    "type": "string",
+                    "enum": [
+                        "PLAIN",
+                        "LIPPED",
+                        "DIN_1026",
+                        "U_CHANNEL",
+                        "INCH_SERIES"
+                    ],
+                    "indexed": true
+                },
+                "size_label": {
+                    "type": "string",
+                    "example": "150x65",
+                    "indexed": true
+                },
+                "lip_depth_mm": {
+                    "type": "number",
+                    "description": "C dimension for lipped channels; null for plain"
+                },
+                "thickness_mm": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "mass_per_metre_kg": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "dimensions": {
+                    "height_mm": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "width_mm": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "section_area_cm2": {
+                        "type": "number"
+                    }
+                },
+                "section_properties": {
+                    "centroid_Cx_cm": {
+                        "type": "number"
+                    },
+                    "centroid_Cy_cm": {
+                        "type": "number"
+                    },
+                    "Ix_cm4": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "Iy_cm4": {
+                        "type": "number"
+                    },
+                    "ix_cm": {
+                        "type": "number"
+                    },
+                    "iy_cm": {
+                        "type": "number"
+                    },
+                    "Zx_cm3": {
+                        "type": "number"
+                    },
+                    "Zy_cm3": {
+                        "type": "number"
+                    },
+                    "Zx_reduced_cm3": {
+                        "type": "number",
+                        "description": "Reduced section modulus Zx1 for lipped channels"
+                    },
+                    "moment_capacity_kg_m": {
+                        "type": "number"
+                    },
+                    "shear_centre_cm": {
+                        "type": "number"
+                    },
+                    "column_factor_Q": {
+                        "type": "number"
+                    }
+                },
+                "standards": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "grades_available": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "_sub_collections": {
+                    "safe_loads": {
+                        "_firestore_path": "channels/{channelId}/safe_loads/{gradeId}",
+                        "_same_structure_as": "structural_beams/safe_loads"
+                    }
+                }
+            }
+        },
+        "purlins": {
+            "_description": "High-tensile galvanised Z-purlins and C-purlins.",
+            "_firestore_path": "purlins/{purlinId}",
+            "_example_id": "Z-200x75x20-2.3t",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 135
+                },
+                "purlin_type": {
+                    "type": "string",
+                    "enum": [
+                        "Z_PURLIN",
+                        "C_PURLIN"
+                    ],
+                    "indexed": true
+                },
+                "size_label": {
+                    "type": "string",
+                    "example": "200x75",
+                    "indexed": true
+                },
+                "thickness_mm": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "mass_per_metre_kg": {
+                    "type": "number"
+                },
+                "dimensions": {
+                    "height_mm": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "flange_mm": {
+                        "type": "number"
+                    },
+                    "lip_mm": {
+                        "type": "number"
+                    }
+                },
+                "section_properties": {
+                    "Ix_cm4": {
+                        "type": "number"
+                    },
+                    "Iy_cm4": {
+                        "type": "number"
+                    },
+                    "Zx_cm3": {
+                        "type": "number"
+                    },
+                    "Zy_cm3": {
+                        "type": "number"
+                    }
+                },
+                "finish": {
+                    "type": "string",
+                    "enum": [
+                        "GALVANISED"
+                    ],
+                    "default": "GALVANISED"
+                },
+                "standards": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                }
+            }
+        },
+        "angles": {
+            "_description": "Equal and unequal angles (mild steel and stainless steel).",
+            "_firestore_path": "angles/{angleId}",
+            "_example_id": "EA-100x100x8",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 142
+                },
+                "angle_type": {
+                    "type": "string",
+                    "enum": [
+                        "EQUAL",
+                        "UNEQUAL"
+                    ],
+                    "indexed": true
+                },
+                "material": {
+                    "type": "string",
+                    "enum": [
+                        "MILD_STEEL",
+                        "STAINLESS_STEEL"
+                    ],
+                    "indexed": true
+                },
+                "ss_grade": {
+                    "type": "string",
+                    "description": "e.g. 304, 316 — null for mild steel",
+                    "indexed": true
+                },
+                "size_label": {
+                    "type": "string",
+                    "example": "100x100x8",
+                    "indexed": true
+                },
+                "leg_a_mm": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "leg_b_mm": {
+                    "type": "number",
+                    "indexed": true,
+                    "description": "Equal to leg_a_mm for equal angles"
+                },
+                "thickness_mm": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "mass_per_metre_kg": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "section_area_cm2": {
+                    "type": "number"
+                },
+                "section_properties": {
+                    "Ix_cm4": {
+                        "type": "number"
+                    },
+                    "Iy_cm4": {
+                        "type": "number"
+                    },
+                    "ix_cm": {
+                        "type": "number"
+                    },
+                    "iy_cm": {
+                        "type": "number"
+                    },
+                    "Zx_cm3": {
+                        "type": "number"
+                    },
+                    "Zy_cm3": {
+                        "type": "number"
+                    },
+                    "centroid_cx_cm": {
+                        "type": "number"
+                    },
+                    "centroid_cy_cm": {
+                        "type": "number"
+                    }
+                },
+                "standards": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "grades_available": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                }
+            }
+        },
+        "bars": {
+            "_description": "Flat, round, square, hex bars — mild steel, stainless steel, carbon steel, alloy steel, cold-finished.",
+            "_firestore_path": "bars/{barId}",
+            "_example_id": "ROUND-MS-50mm",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 152
+                },
+                "bar_shape": {
+                    "type": "string",
+                    "enum": [
+                        "ROUND",
+                        "FLAT",
+                        "SQUARE",
+                        "HEX"
+                    ],
+                    "indexed": true
+                },
+                "material": {
+                    "type": "string",
+                    "enum": [
+                        "MILD_STEEL",
+                        "STAINLESS_STEEL",
+                        "CARBON_STEEL",
+                        "ALLOY_STEEL",
+                        "COLD_FINISHED"
+                    ],
+                    "indexed": true
+                },
+                "size_label": {
+                    "type": "string",
+                    "example": "50mm dia",
+                    "indexed": true
+                },
+                "dimensions": {
+                    "diameter_mm": {
+                        "type": "number",
+                        "indexed": true,
+                        "description": "Round bars"
+                    },
+                    "width_mm": {
+                        "type": "number",
+                        "indexed": true,
+                        "description": "Flat bars"
+                    },
+                    "thickness_mm": {
+                        "type": "number",
+                        "indexed": true,
+                        "description": "Flat bars"
+                    },
+                    "side_mm": {
+                        "type": "number",
+                        "indexed": true,
+                        "description": "Square bars"
+                    },
+                    "across_flats_mm": {
+                        "type": "number",
+                        "indexed": true,
+                        "description": "Hex bars"
+                    }
+                },
+                "mass_per_metre_kg": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "grade": {
+                    "type": "string",
+                    "indexed": true
+                },
+                "aisi_grade": {
+                    "type": "string",
+                    "description": "AISI equivalent, e.g. 1045",
+                    "indexed": true
+                },
+                "ss_grade": {
+                    "type": "string",
+                    "description": "e.g. 304, 316, 316L — null for non-SS",
+                    "indexed": true
+                },
+                "finish": {
+                    "type": "string",
+                    "enum": [
+                        "AS_ROLLED",
+                        "COLD_FINISHED",
+                        "BRIGHT_ANNEALED",
+                        "2B"
+                    ],
+                    "indexed": true
+                },
+                "condition": {
+                    "type": "string",
+                    "enum": [
+                        "AS_ROLLED",
+                        "ANNEALED",
+                        "PRE_HARDENED_TEMPERED",
+                        "QUENCHED_TEMPERED"
+                    ],
+                    "indexed": true
+                },
+                "mechanical_properties": {
+                    "_note": "Embedded because bars are almost always selected by grade+mechanical spec together.",
+                    "yield_strength_min_mpa": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "tensile_strength_min_mpa": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "tensile_strength_max_mpa": {
+                        "type": "number"
+                    },
+                    "elongation_min_pct": {
+                        "type": "number"
+                    },
+                    "reduction_area_min_pct": {
+                        "type": "number"
+                    },
+                    "charpy_temperature_c": {
+                        "type": "number"
+                    },
+                    "charpy_energy_min_j": {
+                        "type": "number"
+                    },
+                    "hardness_min_hb": {
+                        "type": "number"
+                    },
+                    "hardness_max_hb": {
+                        "type": "number"
+                    }
+                },
+                "chemical_composition": {
+                    "_note": "Embedded for alloy/carbon steel bars — composition is part of the selection criteria.",
+                    "C_min": {
+                        "type": "number"
+                    },
+                    "C_max": {
+                        "type": "number"
+                    },
+                    "Mn_min": {
+                        "type": "number"
+                    },
+                    "Mn_max": {
+                        "type": "number"
+                    },
+                    "Si_min": {
+                        "type": "number"
+                    },
+                    "Si_max": {
+                        "type": "number"
+                    },
+                    "P_max": {
+                        "type": "number"
+                    },
+                    "S_max": {
+                        "type": "number"
+                    },
+                    "Cr_min": {
+                        "type": "number"
+                    },
+                    "Cr_max": {
+                        "type": "number"
+                    },
+                    "Ni_min": {
+                        "type": "number"
+                    },
+                    "Ni_max": {
+                        "type": "number"
+                    },
+                    "Mo_min": {
+                        "type": "number"
+                    },
+                    "Mo_max": {
+                        "type": "number"
+                    }
+                },
+                "standards": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                }
+            }
+        },
+        "plates": {
+            "_description": "Structural plates, chequer plates, cold-rolled coils/sheets, galvanised sheets, all plate products.",
+            "_firestore_path": "plates/{plateId}",
+            "_example_id": "STRUCT-HOT-2500x6000x20",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 158
+                },
+                "plate_type": {
+                    "type": "string",
+                    "enum": [
+                        "STRUCTURAL_HOT_ROLLED",
+                        "CHEQUER_FLOOR_PLATE",
+                        "COLD_ROLLED_COIL",
+                        "COLD_ROLLED_SHEET",
+                        "ELECTROLYTIC_GALVANISED",
+                        "HOT_DIP_GALVANISED",
+                        "GALVANISED_SHEET",
+                        "SS_PLATE",
+                        "SS_SHEET",
+                        "SS_COIL",
+                        "BOILER_PRESSURE_VESSEL",
+                        "SHIPBUILDING",
+                        "LOW_ALLOY",
+                        "LOW_TEMPERATURE"
+                    ],
+                    "indexed": true
+                },
+                "material": {
+                    "type": "string",
+                    "enum": [
+                        "MILD_STEEL",
+                        "HIGH_TENSILE",
+                        "STAINLESS_STEEL",
+                        "ALLOY_STEEL"
+                    ],
+                    "indexed": true
+                },
+                "thickness_mm": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "width_mm": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "length_mm": {
+                    "type": "number"
+                },
+                "grade": {
+                    "type": "string",
+                    "indexed": true
+                },
+                "ss_grade": {
+                    "type": "string",
+                    "description": "304, 316, 316L etc. — null for non-SS",
+                    "indexed": true
+                },
+                "finish": {
+                    "type": "string",
+                    "enum": [
+                        "AS_ROLLED",
+                        "PICKLED_OILED",
+                        "2B",
+                        "NO1",
+                        "NO4",
+                        "GALVANISED",
+                        "HOT_DIP_GALVANISED"
+                    ],
+                    "indexed": true
+                },
+                "application_class": {
+                    "type": "string",
+                    "enum": [
+                        "STRUCTURAL",
+                        "BOILER_PRESSURE",
+                        "SHIPBUILDING",
+                        "WEATHERING",
+                        "LOW_TEMPERATURE",
+                        "AUTOMOBILE_MACHINE"
+                    ],
+                    "indexed": true
+                },
+                "standards": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "grades_available": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                }
+            }
+        },
+        "pipe_fittings": {
+            "_description": "Wrought steel butt-welding fittings (mild steel and stainless). One doc per fitting type + NB + schedule + material.",
+            "_firestore_path": "pipe_fittings/{fittingId}",
+            "_example_id": "SS316-ELBOW90-50NB-SCH40",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 180
+                },
+                "fitting_type": {
+                    "type": "string",
+                    "enum": [
+                        "ELBOW_90",
+                        "ELBOW_45",
+                        "ELBOW_180",
+                        "TEE_EQUAL",
+                        "TEE_REDUCING",
+                        "REDUCER_CONCENTRIC",
+                        "REDUCER_ECCENTRIC",
+                        "CAP",
+                        "STUB_END"
+                    ],
+                    "indexed": true
+                },
+                "material": {
+                    "type": "string",
+                    "enum": [
+                        "MILD_STEEL",
+                        "STAINLESS_STEEL"
+                    ],
+                    "indexed": true
+                },
+                "ss_grade": {
+                    "type": "string",
+                    "description": "e.g. 304, 316 — null for mild steel",
+                    "indexed": true
+                },
+                "nominal_bore_inch": {
+                    "type": "string",
+                    "indexed": true
+                },
+                "nominal_bore_mm": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "schedule": {
+                    "type": "string",
+                    "indexed": true
+                },
+                "standard": {
+                    "type": "string",
+                    "indexed": true
+                },
+                "wall_thickness_mm": {
+                    "type": "number"
+                },
+                "center_to_end_mm": {
+                    "type": "number"
+                },
+                "weight_kg": {
+                    "type": "number"
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                }
+            }
+        },
+        "flanges": {
+            "_description": "All flange types, both mild steel and stainless steel.",
+            "_firestore_path": "flanges/{flangeId}",
+            "_example_id": "MS-WNRF-50NB-150LB",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 187
+                },
+                "flange_type": {
+                    "type": "string",
+                    "enum": [
+                        "SLIP_ON",
+                        "WELD_NECK",
+                        "BLIND",
+                        "SOCKET_WELD",
+                        "THREADED",
+                        "LAP_JOINT",
+                        "ORIFICE"
+                    ],
+                    "indexed": true
+                },
+                "material": {
+                    "type": "string",
+                    "enum": [
+                        "MILD_STEEL",
+                        "STAINLESS_STEEL"
+                    ],
+                    "indexed": true
+                },
+                "ss_grade": {
+                    "type": "string",
+                    "indexed": true
+                },
+                "nominal_bore_inch": {
+                    "type": "string",
+                    "indexed": true
+                },
+                "nominal_bore_mm": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "pressure_rating": {
+                    "type": "string",
+                    "example": "150LB",
+                    "indexed": true
+                },
+                "facing_type": {
+                    "type": "string",
+                    "enum": [
+                        "RAISED_FACE",
+                        "FLAT_FACE",
+                        "RING_TYPE_JOINT"
+                    ],
+                    "indexed": true
+                },
+                "standard": {
+                    "type": "string",
+                    "indexed": true
+                },
+                "od_mm": {
+                    "type": "number"
+                },
+                "thickness_mm": {
+                    "type": "number"
+                },
+                "bolt_circle_dia_mm": {
+                    "type": "number"
+                },
+                "no_of_bolts": {
+                    "type": "number"
+                },
+                "bolt_hole_dia_mm": {
+                    "type": "number"
+                },
+                "weight_kg": {
+                    "type": "number"
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                }
+            }
+        },
+        "stainless_corrosion_resistance": {
+            "_description": "Chemical corrosion resistance ratings for SS 304 and 316. One doc per substance+concentration+condition.",
+            "_firestore_path": "stainless_corrosion_resistance/{corrId}",
+            "_example_id": "acetic-acid-5pct-agitated-70f",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 207
+                },
+                "substance": {
+                    "type": "string",
+                    "indexed": true
+                },
+                "concentration_pct": {
+                    "type": "number",
+                    "indexed": true
+                },
+                "condition": {
+                    "type": "string",
+                    "enum": [
+                        "STILL",
+                        "AGITATED",
+                        "AERATED",
+                        "BOILING",
+                        "HOT",
+                        "COLD",
+                        "OTHER"
+                    ],
+                    "indexed": true
+                },
+                "temperature_f": {
+                    "type": "number"
+                },
+                "rating_304": {
+                    "type": "string",
+                    "enum": [
+                        "A",
+                        "A1",
+                        "A3",
+                        "B",
+                        "B1",
+                        "B2",
+                        "B3",
+                        "C",
+                        "C1",
+                        "D",
+                        "D1",
+                        "D3",
+                        "E"
+                    ],
+                    "indexed": true
+                },
+                "rating_316": {
+                    "type": "string",
+                    "enum": [
+                        "A",
+                        "A1",
+                        "A3",
+                        "B",
+                        "B1",
+                        "B2",
+                        "B3",
+                        "C",
+                        "C1",
+                        "D",
+                        "D1",
+                        "D3",
+                        "E"
+                    ],
+                    "indexed": true
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                }
+            },
+            "_rating_scale": {
+                "A": "Fully resistant (<0.00035 in/month penetration)",
+                "B": "Satisfactorily resistant (0.00035–0.0035 in/month)",
+                "C": "Fairly resistant (0.0035–0.010 in/month)",
+                "D": "Slightly resistant (0.010–0.035 in/month)",
+                "E": "Not resistant (>0.035 in/month)",
+                "_suffix_1": "Subject to pitting at air line or when allowed to dry",
+                "_suffix_2": "Keep solutions alkaline",
+                "_suffix_3": "Slight discolouration"
+            }
+        },
+        "non_ferrous": {
+            "_description": "Copper, brass, bronze products.",
+            "_firestore_path": "non_ferrous/{itemId}",
+            "_example_id": "COPPER-ROUND-50mm",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 254
+                },
+                "material": {
+                    "type": "string",
+                    "enum": [
+                        "COPPER",
+                        "BRASS",
+                        "BRONZE"
+                    ],
+                    "indexed": true
+                },
+                "product_form": {
+                    "type": "string",
+                    "enum": [
+                        "ROUND_BAR",
+                        "FLAT_BAR",
+                        "SQUARE_BAR",
+                        "HEX_BAR",
+                        "PLATE",
+                        "SHEET",
+                        "TUBE",
+                        "ROD",
+                        "WIRE"
+                    ],
+                    "indexed": true
+                },
+                "alloy_designation": {
+                    "type": "string",
+                    "indexed": true
+                },
+                "standard": {
+                    "type": "string",
+                    "indexed": true
+                },
+                "temper": {
+                    "type": "string",
+                    "indexed": true
+                },
+                "dimensions": {
+                    "diameter_mm": {
+                        "type": "number",
+                        "indexed": true
+                    },
+                    "width_mm": {
+                        "type": "number"
+                    },
+                    "thickness_mm": {
+                        "type": "number"
+                    },
+                    "length_mm": {
+                        "type": "number"
+                    }
+                },
+                "mechanical_properties": {
+                    "tensile_strength_min_mpa": {
+                        "type": "number"
+                    },
+                    "yield_strength_min_mpa": {
+                        "type": "number"
+                    },
+                    "elongation_min_pct": {
+                        "type": "number"
+                    },
+                    "hardness_hv": {
+                        "type": "number"
+                    }
+                },
+                "conductivity_pct_iacs": {
+                    "type": "number"
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                }
+            }
+        },
+        "misc_products": {
+            "_description": "Galvanised serrated gratings and expanded metal. Small catalogue, single collection.",
+            "_firestore_path": "misc_products/{itemId}",
+            "_document": {
+                "_meta": {
+                    "created_at": "Timestamp",
+                    "updated_at": "Timestamp",
+                    "active": true,
+                    "handbook_page": 176
+                },
+                "product_type": {
+                    "type": "string",
+                    "enum": [
+                        "GALVANISED_GRATING",
+                        "EXPANDED_METAL"
+                    ],
+                    "indexed": true
+                },
+                "bearing_bar_size": {
+                    "type": "string",
+                    "description": "e.g. 25x3 mm",
+                    "indexed": true
+                },
+                "cross_bar_pitch_mm": {
+                    "type": "number"
+                },
+                "mesh_size": {
+                    "type": "string",
+                    "description": "For expanded metal: SWO x SWD mm"
+                },
+                "strand_thickness_mm": {
+                    "type": "number"
+                },
+                "panel_width_mm": {
+                    "type": "number"
+                },
+                "panel_length_mm": {
+                    "type": "number"
+                },
+                "weight_kg_m2": {
+                    "type": "number"
+                },
+                "material": {
+                    "type": "string",
+                    "enum": [
+                        "MILD_STEEL",
+                        "GALVANISED",
+                        "STAINLESS_STEEL"
+                    ],
+                    "indexed": true
+                },
+                "keywords": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "indexed": true
+                }
+            }
+        },
+        "reference_tables": {
+            "_description": "Read-only engineering reference data: BS449 Table 3a (bending stress), Table 17a (axial compression), deflection coefficients, high-strength steel grades. One document per table.",
+            "_firestore_path": "reference_tables/{tableId}",
+            "_sub_documents": {
+                "BS449-TABLE3A-GRADE43": {
+                    "table_name": "Allowable bending stress pbc (N/mm²) for Grade 43 steel",
+                    "standard": "BS 449",
+                    "grade": "GRADE_43",
+                    "type": "BENDING_STRESS",
+                    "_note": "Keyed map: outer key = l_over_ry (string), inner key = D_over_T (string). Faster than array for two-axis lookup.",
+                    "data": {
+                        "90": {
+                            "10": 165,
+                            "15": 165,
+                            "20": 165,
+                            "25": 165,
+                            "30": 165,
+                            "35": 165,
+                            "40": 165,
+                            "50": 165
+                        },
+                        "95": {
+                            "10": 165,
+                            "15": 165,
+                            "20": 165,
+                            "25": 163,
+                            "30": 163,
+                            "35": 163,
+                            "40": 163,
+                            "50": 163
+                        },
+                        "100": {
+                            "10": 165,
+                            "15": 165,
+                            "20": 165,
+                            "25": 157,
+                            "30": 157,
+                            "35": 157,
+                            "40": 157,
+                            "50": 157
+                        }
+                    }
+                },
+                "BS449-TABLE17A-GRADE43": {
+                    "table_name": "Allowable axial compression stress pc (N/mm²) for Grade 43 steel",
+                    "standard": "BS 449",
+                    "grade": "GRADE_43",
+                    "type": "AXIAL_COMPRESSION",
+                    "_note": "Outer key = l_over_r tens digit (string), inner keys 0–9 are the units digit. Matches Table 17a layout exactly.",
+                    "data": {
+                        "0": {
+                            "0": 155,
+                            "1": 155,
+                            "2": 154,
+                            "3": 154,
+                            "4": 153,
+                            "5": 153,
+                            "6": 153,
+                            "7": 152,
+                            "8": 152,
+                            "9": 151
+                        },
+                        "10": {
+                            "0": 151,
+                            "1": 151,
+                            "2": 150,
+                            "3": 150,
+                            "4": 149,
+                            "5": 149,
+                            "6": 148,
+                            "7": 148,
+                            "8": 148,
+                            "9": 147
+                        },
+                        "250": {
+                            "0": 15
+                        },
+                        "300": {
+                            "0": 11
+                        },
+                        "350": {
+                            "0": 8
+                        }
+                    }
+                },
+                "HIGH_STRENGTH_STEEL_GRADES": {
+                    "table_name": "High strength steel grade equivalents and mechanical properties",
+                    "type": "GRADE_REFERENCE",
+                    "_note": "Array of grade objects. Queried as a whole document; no sub-field indexing needed.",
+                    "grades": [
+                        {
+                            "region": "EU",
+                            "standard": "EN 10025-2:2004",
+                            "grade": "S355JR",
+                            "yield_min_mpa": 355,
+                            "uts_range": "470/630",
+                            "charpy_temp_c": 20,
+                            "charpy_j": 27,
+                            "former_eu": "S355 JR",
+                            "former_gb": "50B",
+                            "former_de": "St.52-3"
+                        },
+                        {
+                            "region": "EU",
+                            "standard": "EN 10025-2:2004",
+                            "grade": "S355J2",
+                            "yield_min_mpa": 355,
+                            "uts_range": "470/630",
+                            "charpy_temp_c": -20,
+                            "charpy_j": 27,
+                            "former_eu": "S355 J2G4",
+                            "former_gb": "50EE",
+                            "former_de": null
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "indexing_strategy": {
+        "_note": "Single-field indexes are auto-created by Firestore. Only composite indexes are listed here.",
+        "composite_indexes": [
+            {
+                "collection": "structural_beams",
+                "fields": [
+                    "type ASC",
+                    "dimensions.depth_mm ASC",
+                    "mass_per_metre_kg ASC"
+                ]
+            },
+            {
+                "collection": "structural_beams",
+                "fields": [
+                    "type ASC",
+                    "grades_available ARRAY",
+                    "_meta.active ASC"
+                ]
+            },
+            {
+                "collection": "structural_beams",
+                "fields": [
+                    "section_properties.Ix_cm4 ASC",
+                    "section_properties.iy_cm ASC"
+                ]
+            },
+            {
+                "collection": "hollow_sections",
+                "fields": [
+                    "formation ASC",
+                    "shape ASC",
+                    "dimensions.wall_thickness_mm ASC"
+                ]
+            },
+            {
+                "collection": "hollow_sections",
+                "fields": [
+                    "shape ASC",
+                    "dimensions.width_mm ASC",
+                    "mass_per_metre_kg ASC"
+                ]
+            },
+            {
+                "collection": "pipes",
+                "fields": [
+                    "pipe_type ASC",
+                    "outside_diameter_mm ASC",
+                    "wall_thickness_mm ASC"
+                ]
+            },
+            {
+                "collection": "pipes",
+                "fields": [
+                    "nominal_bore_mm ASC",
+                    "schedule ASC"
+                ]
+            },
+            {
+                "collection": "channels",
+                "fields": [
+                    "channel_type ASC",
+                    "dimensions.height_mm ASC",
+                    "thickness_mm ASC"
+                ]
+            },
+            {
+                "collection": "bars",
+                "fields": [
+                    "bar_shape ASC",
+                    "material ASC",
+                    "mechanical_properties.yield_strength_min_mpa ASC"
+                ]
+            },
+            {
+                "collection": "bars",
+                "fields": [
+                    "material ASC",
+                    "condition ASC",
+                    "dimensions.diameter_mm ASC"
+                ]
+            },
+            {
+                "collection": "plates",
+                "fields": [
+                    "plate_type ASC",
+                    "thickness_mm ASC",
+                    "material ASC"
+                ]
+            },
+            {
+                "collection": "plates",
+                "fields": [
+                    "application_class ASC",
+                    "grade ASC"
+                ]
+            },
+            {
+                "collection": "pipe_fittings",
+                "fields": [
+                    "material ASC",
+                    "fitting_type ASC",
+                    "nominal_bore_mm ASC",
+                    "schedule ASC"
+                ]
+            },
+            {
+                "collection": "flanges",
+                "fields": [
+                    "material ASC",
+                    "flange_type ASC",
+                    "nominal_bore_mm ASC",
+                    "pressure_rating ASC"
+                ]
+            },
+            {
+                "collection": "stainless_corrosion_resistance",
+                "fields": [
+                    "substance ASC",
+                    "condition ASC"
+                ]
+            },
+            {
+                "collection": "stainless_corrosion_resistance",
+                "fields": [
+                    "rating_316 ASC",
+                    "temperature_f ASC"
+                ]
+            },
+            {
+                "collection": "angles",
+                "fields": [
+                    "material ASC",
+                    "leg_a_mm ASC",
+                    "thickness_mm ASC"
+                ]
+            }
+        ]
+    }
+}

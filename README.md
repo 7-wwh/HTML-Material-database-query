@@ -73,47 +73,45 @@ Converts complex engineering datasheets from PDF → structured JSON → searcha
 └── README.md                    # Project documentation
 ```
 
-## Pull Requests
+## Project History
 
-Contributions are welcome. The JSON schema in `JSON Mapping/` and the Firestore ingestion pipeline are the active development areas.
+```
+v0.1 — Quick prototype
+  └── index.html + main.js fetching small .db (proved concept)
 
-## Project Timeline & Development History
+v0.1.1 — Monolithic DB attempt (FAILED)
+  ├── Plumber pipeline: PDF → single .db
+  └── PDF layout variance × SQLite rigid schema
 
-### Phase 1: Conception (Day 1)
-- **Draft idea**: Understand the problem — engineers need to query steel specification tables. Identify **GitHub Pages** as the hosting platform (zero-cost static hosting).
-- **Quick prototype**: Build basic `index.html` + `main.js` that fetches small data from a `.db` file. Everything works perfectly for a small test case.
+v0.2 — Multi-DB pivot
+  ├── Split PDF sections → multiple .db files
+  └── SQL.js + databases.json manifest
 
-### Phase 2: Architecture Crossroad
-Two competing approaches were considered:
-1. **Split PDF into pages** → each page becomes its own `.db` file → frontend picks which `.db` to load
-2. **Entire PDF → one large `.db`** → single unified query across all data
+v0.3 — JSON generation (breakthrough)
+  ├── .docx → .json pipeline (no table-boundary issues)
+  ├── build_index.py: multi-level header parser, forward-fill, section tracking
+  └── Document model > relational for engineering data
 
-**Chosen: Path 2** — the ability to query everything together was deemed more important than the simplicity of per-page isolation.
+v0.4 (active) — Hybrid JSON + Firestore
+  ├── GitHub Pages: catalogue.json (~50 KB, instant load)
+  └── Firestore: full datasheet content, single-doc reads
 
-### Phase 3: The Monolithic DB Attempt (FAIL)
-- Attempted to extract the entire YH Handbook into a single `.db` using Python scripts (`Plumber/`)
-- **Why it failed**:
-  - AI agents could not produce a well-structured `.db` in a single attempt (cost/complexity issues)
-  - Even custom Python scripts (`pdfplumber`, `Camelot`, `pdftotext`) could not reliably extract and classify tables due to extreme page-to-page layout variance
-  - The rigid rectangular schema of SQLite (fixed columns per row) is fundamentally mismatched to engineering datasheets with merged cells, sub-tables, and hierarchical headers
+v0.5 (planned) — UI split
+  ├── Login (simple encryption)
+  ├── Landing (category → sub-directory drill-down)
+  └── Main Page (side-by-side comparison, source PDFs, cross-datasheet queries)
 
-### Phase 4: Pivot — Multi-DB by Sections
-Split the PDF into logical sections, each section → its own `.db` file. Each `.db` is smaller, more focused, and easier to verify. The frontend dynamically loads the correct `.db` based on user selection using SQL.js + a manifest (`databases.json`). This is the architecture reflected in the current codebase.
+v0.6 (planned) — Public launch V1 → iterate → V2
+```
 
-### Phase 5: JSON Generation (Breakthrough)
-An experimental branch explored converting `.docs` files directly to **`.json`** instead of `.db`. Results:
-- **Very reliable** extraction (no table-boundary detection needed — docx has native table structure)
-- **Very fast queries** (JSON parse + filter in-memory)
-- **Docx is the wrong source** — the real bottleneck is PDF extraction, not the storage format
+## Architecture Decisions
 
-### Phase 6: Active Branch — Hybrid JSON Index + Firestore
+**Why not pure SQLite?** Engineering datasheets have variable column counts, merged cells, sub-tables, and hierarchical headers. SQLite's rigid rectangular schema (fixed columns per row) cannot represent this without forcing everything into a lowest-common-denominator grid that loses semantic meaning.
 
-After evaluating JSON (simple, fast, free) vs Firestore (online, scalable, queryable), the chosen architecture is **both**:
+**Why not pure Firestore?** The JSON index on GitHub Pages eliminates downloading or querying the entire dataset on every visit. The 10 MB master JSON stays in the repo; the browser only loads the ~50 KB catalogue index. A hybrid keeps the UI instant while Firestore handles live data on demand.
 
-- **JSON index** on GitHub Pages — lightweight catalogue (~50 KB), instant load, version-controlled directory of all components
-- **Firestore** for live datasheet content — single-document reads per component, minimal quota usage, no re-deploy needed for updates
+**Firestore free tier** (per Google Cloud project):
 
-**Firestore free tier limits** (per Google Cloud project):
 | Resource | Limit |
 |----------|-------|
 | Stored data | 1 GiB |
@@ -122,30 +120,14 @@ After evaluating JSON (simple, fast, free) vs Firestore (online, scalable, query
 | Document deletes | 20,000/day |
 | Data transfer | 10 GiB/month |
 
-For an engineering datasheet viewer, this is more than sufficient: a user browsing components would consume ~1-5 reads per session.
+~1-5 reads per user session. More than sufficient for an engineering catalogue viewer.
 
-**Why not pure SQLite?** SQLite's rigid rectangular schema (fixed columns per row) cannot handle engineering tables with variable column counts, merged cells, sub-tables, and hierarchical headers. SQLite is excellent for transactional data but fundamentally mismatched to heterogeneous datasheets.
-
-**Why not pure Firestore?** The JSON index on GitHub Pages eliminates the need to download or query the entire dataset on every visit. The 10 MB master JSON stays in the repo; the browser only loads the ~50 KB catalogue index.
-
-### Phase 7: Future Roadmap
+## Roadmap
 
 - [ ] **v0.4.0a** — Set up Firestore project, configure security rules, establish schema
 - [ ] **v0.4.0b** — Write ingestion script to push JSON datasheets into Firestore collections
 - [ ] **v0.4.0c** — Build GitHub Pages frontend: fetch catalogue.json → display directory tree → on click, fetch Firestore doc → render as HTML table
 - [ ] **v0.4.0d** — Enhance doc→JSON pipeline: page number extraction, cross-document references, data sorting
 - [ ] **v0.4.0e** — Search & filter: text search across catalogue, category filtering, material/standard filters
-- [ ] **v0.5.0** — Split UI: **Login** (simple encryption), **Landing** (category selection → sub-directory drill-down), **Main Page** (compare components side-by-side, show source PDFs, cross-datasheet queries)
-- [ ] **v0.6.0** — **Launch V1**, gather feedback, iterate toward V2
-
-### Version Tracker
-
-- [x] **v0.1.0** — Quick prototype: basic `index.html` + `main.js` fetching small `.db` data. Proved the concept works.
-- [x] **v0.1.1** — Monolithic DB attempt: Plumber pipeline to extract entire YH Handbook into one `.db`. **FAILED** — page layout variance too extreme for rule-based parsing.
-- [x] **v0.2.0** — Pivot to multi-DB by sections. SQL.js in-browser engine + `databases.json` manifest for dynamic `.db` loading.
-- [x] **v0.2.1** — JSON dynamic manifest engine with multi-DB lazy loading and dynamic tables UI.
-- [x] **v0.3.0** — `.docs` → `.json` generation. Proved document-based format is far more reliable than relational tables for this data.
-- [x] **v0.3.1** — `JSON Mapping/build_index.py`: full table parser with multi-level header joining, forward-fill, section hierarchy tracking, and leftmost-column index for O(1) lookups.
-- [ ] **v0.4.0** — Hybrid architecture: JSON catalogue index (GitHub Pages) + Firestore datasheet content. First online queryable engineering database.
-- [ ] **v0.5.0** — Full UI split: login, category browser, comparison mode, cross-datasheet search.
-- [ ] **v0.6.0** — Public launch V1.
+- [ ] **v0.5.0** — UI split: login, landing with category drill-down, comparison view
+- [ ] **v0.6.0** — Launch V1, iterate toward V2
