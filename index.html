@@ -1,667 +1,757 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tactile 3D Deck</title>
-<style>
-  html, body {
-    margin: 0;
-    min-height: 100%;
-    background: #0b0d12;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: -apple-system, "Inter", sans-serif;
-  }
-
-  .deck-wrap {
-    position: relative;
-    width: 100%;
-    max-width: 900px;
-    padding-bottom: 56px;
-  }
-
-  .search-wrap {
-    position: relative;
-    max-width: 420px;
-    margin: 0 auto 28px;
-    z-index: 600;
-  }
-
-  .search-bar {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 14px;
-    padding: 11px 16px;
-    transition: border-color 0.2s ease, background 0.2s ease;
-  }
-  .search-bar.focused {
-    background: rgba(255,255,255,0.065);
-    border-color: rgba(255,255,255,0.16);
-  }
-
-  .search-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    color: rgba(255,255,255,0.35);
-    transition: color 0.2s ease;
-  }
-  .search-bar.focused .search-icon {
-    color: rgba(255,255,255,0.55);
-  }
-
-  .search-input {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: #fff;
-    font-size: 14px;
-    font-family: inherit;
-    font-weight: 500;
-  }
-  .search-input::placeholder { color: rgba(255,255,255,0.35); }
-
-  .search-clear {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.6);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-  .search-clear.visible { display: flex; }
-
-  .db-status {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex-shrink: 0;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-  }
-  .db-status.visible {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .db-dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.25);
-    flex-shrink: 0;
-    transition: background 0.4s ease;
-  }
-  .db-dot.connecting {
-    background: rgba(255,255,255,0.3);
-    animation: db-pulse 1.2s ease-in-out infinite;
-  }
-  .db-dot.ok  { background: #34d399; animation: none; }
-  .db-dot.err { background: #fb7185; animation: none; }
-
-  @keyframes db-pulse {
-    0%, 100% { opacity: 0.3; }
-    50%       { opacity: 1;   }
-  }
-
-  .db-label {
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    color: rgba(255,255,255,0.3);
-    transition: color 0.4s ease;
-    white-space: nowrap;
-  }
-  .db-label.ok  { color: rgba(52,211,153,0.7);  }
-  .db-label.err { color: rgba(251,113,133,0.7); }
-
-  .db-divider {
-    width: 1px;
-    height: 12px;
-    background: rgba(255,255,255,0.07);
-    flex-shrink: 0;
-  }
-
-  .search-suggestions {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    right: 0;
-    background: #1a1d26;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 14px;
-    box-shadow: 0 16px 32px -10px rgba(0,0,0,0.65);
-    max-height: 0;
-    opacity: 0;
-    overflow: hidden;
-    transform: translateY(-6px);
-    transition: max-height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.22s ease, transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
-    pointer-events: none;
-  }
-  .search-suggestions.open {
-    max-height: 340px;
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-  }
-
-  .suggestion-list {
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    max-height: 324px;
-    overflow-y: auto;
-    scrollbar-width: none;
-  }
-  .suggestion-list::-webkit-scrollbar { display: none; }
-
-  .suggestion-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 12px;
-    border-radius: 9px;
-    cursor: pointer;
-    transition: background 0.12s ease;
-  }
-  .suggestion-row:hover, .suggestion-row.active { background: rgba(255,255,255,0.1); }
-
-  .suggestion-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .suggestion-text { flex: 1; min-width: 0; }
-  .suggestion-sub {
-    font-size: 13px;
-    font-weight: 600;
-    color: #fff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .suggestion-cat {
-    font-size: 11px;
-    color: rgba(255,255,255,0.4);
-    margin-top: 1px;
-  }
-
-  .suggestion-empty {
-    padding: 16px 12px;
-    font-size: 13px;
-    color: rgba(255,255,255,0.4);
-    text-align: center;
-  }
-
-  .deck-viewport {
-    perspective: 1400px;
-    width: 100%;
-    max-width: 900px;
-    height: 320px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    touch-action: none;
-    outline: none;
-    transition: height 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-
-  .deck-container {
-    position: relative;
-    transform-style: preserve-3d;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .tactile-btn {
-    position: absolute;
-    transform-style: preserve-3d;
-    width: 190px;
-    height: 260px;
-    cursor: pointer;
-    user-select: none;
-    backface-visibility: hidden;
-    will-change: transform, opacity;
-    transition: height 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-
-  .btn-3d-wrapper {
-    position: relative;
-    transform-style: preserve-3d;
-    width: 100%;
-    height: 100%;
-    transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-
-  .tactile-btn.pressed .btn-3d-wrapper {
-    transform: translate3d(0, 4px, -8px) !important;
-  }
-
-  .btn-bezel-back {
-    position: absolute;
-    inset: 0;
-    border-radius: 22px;
-    background: var(--card-shade);
-    transform: translateZ(-14px);
-  }
-
-  .btn-bezel-fill {
-    position: absolute;
-    inset: 0;
-    border-radius: 22px;
-    background: var(--card-shade);
-    transform: translateZ(-7px);
-  }
-
-  .flip-stage {
-    position: absolute;
-    inset: 0;
-    transform-style: preserve-3d;
-    transition: transform 0.5s cubic-bezier(0.4, 0.1, 0.2, 1);
-  }
-  .tactile-btn.flipped .flip-stage { transform: rotateY(180deg); }
-
-  .flip-face {
-    position: absolute;
-    inset: 0;
-    border-radius: 22px;
-    backface-visibility: hidden;
-    box-sizing: border-box;
-    background: var(--card-gradient);
-    box-shadow:
-      0 14px 30px -10px rgba(0,0,0,0.55),
-      0 2px 6px rgba(0,0,0,0.3);
-  }
-
-  .flip-front {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-end;
-    padding: 20px;
-  }
-
-  .btn-top-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-  }
-
-  .btn-icon-badge {
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    background: rgba(255,255,255,0.16);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    color: #fff;
-    margin-bottom: 14px;
-    flex-shrink: 0;
-  }
-
-  .btn-chevron {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.14);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    margin-bottom: 14px;
-    flex-shrink: 0;
-  }
-
-  .btn-label {
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    color: #fff;
-  }
-
-  .flip-back {
-    transform: rotateY(180deg);
-    display: flex;
-    flex-direction: column;
-    padding: 18px;
-  }
-
-  .back-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-    flex-shrink: 0;
-  }
-
-  .back-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.9);
-    letter-spacing: 0.01em;
-  }
-
-  .back-close {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.14);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    flex-shrink: 0;
-  }
-
-  .sub-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .sub-item {
-    background: rgba(255,255,255,0.13);
-    border-radius: 10px;
-    padding: 9px 12px;
-    font-size: 13px;
-    font-weight: 500;
-    color: rgba(255,255,255,0.92);
-    transition: background 0.15s ease, box-shadow 0.15s ease;
-  }
-  .sub-item:hover { background: rgba(255,255,255,0.22); }
-  .sub-item.sub-item-highlight {
-    background: rgba(255,255,255,0.34);
-    box-shadow: 0 0 0 1.5px rgba(255,255,255,0.5);
-  }
-
-  .nav-row {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -56px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-  }
-
-  .nav-arrow {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(255,255,255,0.06);
-    color: rgba(255,255,255,0.75);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 17px;
-    transition: background 0.2s ease;
-  }
-  .nav-arrow:hover { background: rgba(255,255,255,0.14); }
-
-  .dots { display: flex; gap: 6px; }
-  .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.2);
-    transition: background 0.2s ease, transform 0.2s ease;
-  }
-  .dot.active { background: rgba(255,255,255,0.85); transform: scale(1.3); }
-
-  @media (max-width: 640px) {
-    .deck-viewport { height: 380px; touch-action: pan-x; }
-    .tactile-btn { width: 220px; height: 150px; }
-  }
-</style>
-</head>
-<body>
-
-<div class="deck-wrap">
-  <div class="search-wrap" id="searchWrap">
-    <div class="search-bar" id="searchBar">
-      <span class="search-icon">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.4"/>
-          <line x1="10.4" y1="10.4" x2="13.5" y2="13.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-        </svg>
-      </span>
-      <input type="text" class="search-input" id="searchInput" placeholder="Search categories" autocomplete="off" spellcheck="false">
-      <div class="search-clear" id="searchClear">&#10005;</div>
-      <div class="db-divider" id="dbDivider" style="opacity:0;transition:opacity 0.3s ease;"></div>
-      <div class="db-status" id="dbStatus">
-        <div class="db-dot connecting" id="dbDot"></div>
-        <span class="db-label" id="dbLabel">—</span>
-      </div>
-    </div>
-    <div class="search-suggestions" id="searchSuggestions">
-      <div class="suggestion-list" id="suggestionList"></div>
-    </div>
-  </div>
-
-  <div class="deck-viewport" id="deckInteractiveArea" tabindex="0">
-    <div class="deck-container" id="tactileDeck"></div>
-  </div>
-  <div class="nav-row">
-    <button class="nav-arrow" id="navLeft" aria-label="Previous">&#8249;</button>
-    <div class="dots" id="dots"></div>
-    <button class="nav-arrow" id="navRight" aria-label="Next">&#8250;</button>
-  </div>
-</div>
-
-<script>
-const THEMES = [
-  { gradient: "linear-gradient(160deg, #6366f1 0%, #3730a3 100%)", shade: "#2e2a7a", dot: "#818cf8" },
-  { gradient: "linear-gradient(160deg, #10b981 0%, #065f46 100%)", shade: "#054d3a", dot: "#34d399" },
-  { gradient: "linear-gradient(160deg, #f59e0b 0%, #b45309 100%)", shade: "#8a3f06", dot: "#fbbf24" },
-  { gradient: "linear-gradient(160deg, #f43f5e 0%, #9f1239 100%)", shade: "#7d0f2f", dot: "#fb7185" },
-  { gradient: "linear-gradient(160deg, #8b5cf6 0%, #4c1d95 100%)", shade: "#3b1578", dot: "#a78bfa" },
-  { gradient: "linear-gradient(160deg, #06b6d4 0%, #0e7490 100%)", shade: "#0a5a6e", dot: "#22d3ee" },
-];
-
-const CATEGORY_ICONS = [
-  "&#9636;",   // General Information  → square
-  "&#9650;",   // Mild Steel           → triangle
-  "&#9737;",   // Stainless Steel      → sun/circle
-  "&#9881;",   // Alloy & Machinery    → gear
-  "&#10022;",  // Non-Ferrous          → star
-  "&#8734;",   // Appendix             → infinity
-];
-
-let items = [];
-let N = 0;
-
-async function checkDb() {
-  const dot   = document.getElementById('dbDot');
-  const label = document.getElementById('dbLabel');
-  const status = document.getElementById('dbStatus');
-  const divider = document.getElementById('dbDivider');
-
-  // Show indicator
-  status.classList.add('visible');
-  divider.style.opacity = '1';
-  dot.className = 'db-dot connecting';
-  label.className = 'db-label';
-  label.textContent = '—';
-
-  const t0 = performance.now();
-  try {
-    const res = await fetch('./database/handbook_steel.db', { method: 'HEAD', cache: 'no-store' });
-    const ms = Math.round(performance.now() - t0);
-    if (!res.ok && res.status !== 405) throw new Error(`HTTP ${res.status}`);
-    dot.className = 'db-dot ok';
-    label.className = 'db-label ok';
-    label.textContent = `${ms}ms`;
-  } catch {
-    const ms = Math.round(performance.now() - t0);
-    dot.className = 'db-dot err';
-    label.className = 'db-label err';
-    label.textContent = `Fail ${ms}ms`;
-  }
-}
-
-async function loadData() {
-  try {
-    const res = await fetch('./database/databases.json');
-    if (!res.ok) throw new Error('Failed to fetch databases.json');
-    const data = await res.json();
-    items = data.catalog.map((cat, i) => ({
-      text: cat.category,
-      icon: CATEGORY_ICONS[i % CATEGORY_ICONS.length],
-      theme: i % THEMES.length,
-      subs: cat.items.map(item => item.name),
-      keywords: cat.items.flatMap(item => [item.name, ...(item.keywords || [])]),
-    }));
-  } catch (err) {
-    console.error('Could not load databases.json:', err);
-    // Fallback: single error card
-    items = [{
-      text: "Load Error",
-      icon: "&#9888;",
-      theme: 3,
-      subs: ["Could not load databases.json"],
-      keywords: [],
-    }];
-  }
-  N = items.length;
-}
-const curveAngle = 24;
-const zDepthStep = 110;
-const spacingValue = 150;
-const BASE_HEIGHT_DESKTOP = 260;
-const BASE_HEIGHT_MOBILE = 150;
-const MAX_CARD_HEIGHT = 440;
-const ROW_HEIGHT = 40;
-const HEADER_HEIGHT = 44;
-const VPAD = 60;
-
-let position = 0;
-let dragging = false;
-let dragMoved = false;
-let dragStart = 0;
-let dragStartPos = 0;
-let raf = null;
-let isMobile = window.matchMedia('(max-width: 640px)').matches;
-let flippedIndex = null;
-
-const container = document.getElementById('tactileDeck');
-const viewport = document.getElementById('deckInteractiveArea');
-const dotsEl = document.getElementById('dots');
-const searchInput = document.getElementById('searchInput');
-const searchBar = document.getElementById('searchBar');
-const searchClear = document.getElementById('searchClear');
-const searchSuggestions = document.getElementById('searchSuggestions');
-const suggestionList = document.getElementById('suggestionList');
-
-async function init() {
-  await loadData();
-  checkDb();
-
-  items.forEach(() => {
-    const d = document.createElement('div');
-    d.className = 'dot';
-    dotsEl.appendChild(d);
-  });
-
-window.matchMedia('(max-width: 640px)').addEventListener('change', (e) => {
-  isMobile = e.matches;
-  render();
-});
-
-function shortestOffset(index, pos) {
-  let raw = index - pos;
-  raw = ((raw % N) + N) % N;
-  if (raw > N / 2) raw -= N;
-  return raw;
-}
-
-function cardHeightFor(subsCount) {
-  const base = isMobile ? BASE_HEIGHT_MOBILE : BASE_HEIGHT_DESKTOP;
-  const needed = HEADER_HEIGHT + subsCount * ROW_HEIGHT + VPAD;
-  return Math.max(base, Math.min(needed, MAX_CARD_HEIGHT));
-}
-
-function unflip() {
-  if (flippedIndex === null) return;
-  flippedIndex = null;
-  viewport.style.height = '';
-  render();
-}
-
-function openFlip(index) {
-  flippedIndex = index;
-  viewport.style.height = cardHeightFor(items[index].subs.length) + VPAD + 'px';
-  render();
-}
-
-function render() {
-  container.innerHTML = '';
-  const rounded = ((Math.round(position) % N) + N) % N;
-
-  [...dotsEl.children].forEach((d, i) => d.classList.toggle('active', i === rounded));
-
-  items.forEach((item, index) => {
-    const offset = shortestOffset(index, position);
-    const absOffset = Math.abs(offset);
-    if (absOffset > 3) return;
-
-    const theme = THEMES[item.theme % THEMES.length];
-    const primaryPos = offset * spacingValue;
-    const zPos = -absOffset * zDepthStep;
-    const rotAngle = -offset * curveAngle;
-    const scale = Math.max(1 - absOffset * 0.16, 0.4);
-    const isCenter = index === rounded && absOffset < 0.5;
-    const isFlipped = isCenter && flippedIndex === index;
-
-    const btn = document.createElement('div');
-    btn.className = 'tactile-btn' + (isCenter ? ' center' : '') + (isFlipped ? ' flipped' : '');
-    btn.style.setProperty('--card-gradient', theme.gradient);
-    btn.style.setProperty('--card-shade', theme.shade);
-
-    if (isFlipped) {
-      const h = cardHeightFor(item.subs.length);
-      btn.style.height = h + 'px';
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tactile 3D Deck</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: #0b0d12;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, "Inter", sans-serif;
     }
 
-    const transform = isMobile
-      ? `translateY(${primaryPos}px) translateZ(${zPos}px) rotateX(${-rotAngle}deg) scale(${scale})`
-      : `translateX(${primaryPos}px) translateZ(${zPos}px) rotateY(${rotAngle}deg) scale(${scale})`;
-    btn.style.transform = transform;
+    .deck-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      padding-bottom: 56px;
+    }
 
-    btn.style.zIndex = isFlipped ? 500 : Math.round(100 - absOffset * 10);
-    btn.style.opacity = Math.max(1 - absOffset * 0.32, 0);
-    btn.style.pointerEvents = absOffset > 3 ? 'none' : 'auto';
-    btn.style.filter = isCenter ? 'none' : `brightness(${Math.max(1 - absOffset * 0.2, 0.4)})`;
+    .search-wrap {
+      position: relative;
+      max-width: 420px;
+      margin: 0 auto 28px;
+      z-index: 600;
+    }
 
-    const subsHtml = item.subs.map(s => `<div class="sub-item" data-sub="${s}">${s}</div>`).join('');
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 14px;
+      padding: 11px 16px;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
 
-    btn.innerHTML = `
+    .search-bar.focused {
+      background: rgba(255, 255, 255, 0.065);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .search-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: rgba(255, 255, 255, 0.35);
+      transition: color 0.2s ease;
+    }
+
+    .search-bar.focused .search-icon {
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .search-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-size: 14px;
+      font-family: inherit;
+      font-weight: 500;
+    }
+
+    .search-input::placeholder {
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    .search-clear {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .search-clear.visible {
+      display: flex;
+    }
+
+    .db-status {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    .db-status.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .db-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.25);
+      flex-shrink: 0;
+      transition: background 0.4s ease;
+    }
+
+    .db-dot.connecting {
+      background: rgba(255, 255, 255, 0.3);
+      animation: db-pulse 1.2s ease-in-out infinite;
+    }
+
+    .db-dot.ok {
+      background: #34d399;
+      animation: none;
+    }
+
+    .db-dot.err {
+      background: #fb7185;
+      animation: none;
+    }
+
+    @keyframes db-pulse {
+
+      0%,
+      100% {
+        opacity: 0.3;
+      }
+
+      50% {
+        opacity: 1;
+      }
+    }
+
+    .db-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      color: rgba(255, 255, 255, 0.3);
+      transition: color 0.4s ease;
+      white-space: nowrap;
+    }
+
+    .db-label.ok {
+      color: rgba(52, 211, 153, 0.7);
+    }
+
+    .db-label.err {
+      color: rgba(251, 113, 133, 0.7);
+    }
+
+    .db-divider {
+      width: 1px;
+      height: 12px;
+      background: rgba(255, 255, 255, 0.07);
+      flex-shrink: 0;
+    }
+
+    .search-suggestions {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: #1a1d26;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      box-shadow: 0 16px 32px -10px rgba(0, 0, 0, 0.65);
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transform: translateY(-6px);
+      transition: max-height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.22s ease, transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+      pointer-events: none;
+    }
+
+    .search-suggestions.open {
+      max-height: 340px;
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .suggestion-list {
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 324px;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .suggestion-list::-webkit-scrollbar {
+      display: none;
+    }
+
+    .suggestion-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background 0.12s ease;
+    }
+
+    .suggestion-row:hover,
+    .suggestion-row.active {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .suggestion-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .suggestion-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .suggestion-sub {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .suggestion-cat {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+      margin-top: 1px;
+    }
+
+    .suggestion-empty {
+      padding: 16px 12px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.4);
+      text-align: center;
+    }
+
+    .deck-viewport {
+      perspective: 1400px;
+      width: 100%;
+      max-width: 900px;
+      height: 320px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      touch-action: none;
+      outline: none;
+      transition: height 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .deck-container {
+      position: relative;
+      transform-style: preserve-3d;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tactile-btn {
+      position: absolute;
+      transform-style: preserve-3d;
+      width: 190px;
+      height: 260px;
+      cursor: pointer;
+      user-select: none;
+      backface-visibility: hidden;
+      will-change: transform, opacity;
+      transition: height 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .btn-3d-wrapper {
+      position: relative;
+      transform-style: preserve-3d;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .tactile-btn.pressed .btn-3d-wrapper {
+      transform: translate3d(0, 4px, -8px) !important;
+    }
+
+    .btn-bezel-back {
+      position: absolute;
+      inset: 0;
+      border-radius: 22px;
+      background: var(--card-shade);
+      transform: translateZ(-14px);
+    }
+
+    .btn-bezel-fill {
+      position: absolute;
+      inset: 0;
+      border-radius: 22px;
+      background: var(--card-shade);
+      transform: translateZ(-7px);
+    }
+
+    .flip-stage {
+      position: absolute;
+      inset: 0;
+      transform-style: preserve-3d;
+      transition: transform 0.5s cubic-bezier(0.4, 0.1, 0.2, 1);
+    }
+
+    .tactile-btn.flipped .flip-stage {
+      transform: rotateY(180deg);
+    }
+
+    .flip-face {
+      position: absolute;
+      inset: 0;
+      border-radius: 22px;
+      backface-visibility: hidden;
+      box-sizing: border-box;
+      background: var(--card-gradient);
+      box-shadow:
+        0 14px 30px -10px rgba(0, 0, 0, 0.55),
+        0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .flip-front {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: 20px;
+    }
+
+    .btn-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .btn-icon-badge {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.16);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #fff;
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+
+    .btn-chevron {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+
+    .btn-label {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: #fff;
+    }
+
+    .flip-back {
+      transform: rotateY(180deg);
+      display: flex;
+      flex-direction: column;
+      padding: 18px;
+      overflow: hidden;
+    }
+
+    .back-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+
+    .back-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+      letter-spacing: 0.01em;
+    }
+
+    .back-close {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .sub-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      flex: 1 1 0;
+      min-height: 0;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      mask-image: linear-gradient(to bottom, transparent 0px, black 10px, black calc(100% - 14px), transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0px, black 10px, black calc(100% - 14px), transparent 100%);
+      padding: 4px 2px 8px;
+    }
+
+    .sub-list::-webkit-scrollbar {
+      display: none;
+    }
+
+    .sub-item {
+      background: rgba(255, 255, 255, 0.13);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.92);
+      transition: background 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .sub-item:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    .sub-item.sub-item-highlight {
+      background: rgba(255, 255, 255, 0.34);
+      box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.5);
+    }
+
+    .nav-row {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    .nav-arrow {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(255, 255, 255, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 17px;
+      transition: background 0.2s ease;
+    }
+
+    .nav-arrow:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .dot.active {
+      background: rgba(255, 255, 255, 0.85);
+      transform: scale(1.3);
+    }
+
+    @media (max-width: 640px) {
+      .deck-viewport {
+        height: 380px;
+        touch-action: pan-x;
+      }
+
+      .tactile-btn {
+        width: 220px;
+        height: 150px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="deck-wrap">
+    <div class="search-wrap" id="searchWrap">
+      <div class="search-bar" id="searchBar">
+        <span class="search-icon">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.4" />
+            <line x1="10.4" y1="10.4" x2="13.5" y2="13.5" stroke="currentColor" stroke-width="1.4"
+              stroke-linecap="round" />
+          </svg>
+        </span>
+        <input type="text" class="search-input" id="searchInput" placeholder="Search categories" autocomplete="off"
+          spellcheck="false">
+        <div class="search-clear" id="searchClear">&#10005;</div>
+        <div class="db-divider" id="dbDivider" style="opacity:0;transition:opacity 0.3s ease;"></div>
+        <div class="db-status" id="dbStatus">
+          <div class="db-dot connecting" id="dbDot"></div>
+          <span class="db-label" id="dbLabel">—</span>
+        </div>
+      </div>
+      <div class="search-suggestions" id="searchSuggestions">
+        <div class="suggestion-list" id="suggestionList"></div>
+      </div>
+    </div>
+
+    <div class="deck-viewport" id="deckInteractiveArea" tabindex="0">
+      <div class="deck-container" id="tactileDeck"></div>
+    </div>
+    <div class="nav-row">
+      <button class="nav-arrow" id="navLeft" aria-label="Previous">&#8249;</button>
+      <div class="dots" id="dots"></div>
+      <button class="nav-arrow" id="navRight" aria-label="Next">&#8250;</button>
+    </div>
+  </div>
+
+  <script>
+    const THEMES = [
+      { gradient: "linear-gradient(160deg, #6366f1 0%, #3730a3 100%)", shade: "#2e2a7a", dot: "#818cf8" },
+      { gradient: "linear-gradient(160deg, #10b981 0%, #065f46 100%)", shade: "#054d3a", dot: "#34d399" },
+      { gradient: "linear-gradient(160deg, #f59e0b 0%, #b45309 100%)", shade: "#8a3f06", dot: "#fbbf24" },
+      { gradient: "linear-gradient(160deg, #f43f5e 0%, #9f1239 100%)", shade: "#7d0f2f", dot: "#fb7185" },
+      { gradient: "linear-gradient(160deg, #8b5cf6 0%, #4c1d95 100%)", shade: "#3b1578", dot: "#a78bfa" },
+      { gradient: "linear-gradient(160deg, #06b6d4 0%, #0e7490 100%)", shade: "#0a5a6e", dot: "#22d3ee" },
+    ];
+
+    const CATEGORY_ICONS = [
+      "&#9636;",   // General Information  → square
+      "&#9650;",   // Mild Steel           → triangle
+      "&#9737;",   // Stainless Steel      → sun/circle
+      "&#9881;",   // Alloy & Machinery    → gear
+      "&#10022;",  // Non-Ferrous          → star
+      "&#8734;",   // Appendix             → infinity
+    ];
+
+    let items = [];
+    let N = 0;
+
+    async function checkDb() {
+      const dot = document.getElementById('dbDot');
+      const label = document.getElementById('dbLabel');
+      const status = document.getElementById('dbStatus');
+      const divider = document.getElementById('dbDivider');
+
+      // Show indicator
+      status.classList.add('visible');
+      divider.style.opacity = '1';
+      dot.className = 'db-dot connecting';
+      label.className = 'db-label';
+      label.textContent = '—';
+
+      const t0 = performance.now();
+      try {
+        const res = await fetch('./database/handbook_steel.db', { method: 'HEAD', cache: 'no-store' });
+        const ms = Math.round(performance.now() - t0);
+        if (!res.ok && res.status !== 405) throw new Error(`HTTP ${res.status}`);
+        dot.className = 'db-dot ok';
+        label.className = 'db-label ok';
+        label.textContent = `${ms}ms`;
+      } catch {
+        const ms = Math.round(performance.now() - t0);
+        dot.className = 'db-dot err';
+        label.className = 'db-label err';
+        label.textContent = `Fail ${ms}ms`;
+      }
+    }
+
+    async function loadData() {
+      try {
+        const res = await fetch('./database/databases.json');
+        if (!res.ok) throw new Error('Failed to fetch databases.json');
+        const data = await res.json();
+        items = data.catalog.map((cat, i) => ({
+          text: cat.category,
+          icon: CATEGORY_ICONS[i % CATEGORY_ICONS.length],
+          theme: i % THEMES.length,
+          subs: cat.items.map(item => item.name),
+          keywords: cat.items.flatMap(item => [item.name, ...(item.keywords || [])]),
+        }));
+      } catch (err) {
+        console.error('Could not load databases.json:', err);
+        // Fallback: single error card
+        items = [{
+          text: "Load Error",
+          icon: "&#9888;",
+          theme: 3,
+          subs: ["Could not load databases.json"],
+          keywords: [],
+        }];
+      }
+      N = items.length;
+    }
+    const curveAngle = 24;
+    const zDepthStep = 110;
+    const spacingValue = 150;
+    const BASE_HEIGHT_DESKTOP = 260;
+    const BASE_HEIGHT_MOBILE = 150;
+    const MAX_CARD_HEIGHT = 440;
+    const ROW_HEIGHT = 40;
+    const HEADER_HEIGHT = 44;
+    const VPAD = 60;
+
+    let position = 0;
+    let dragging = false;
+    let dragMoved = false;
+    let dragStart = 0;
+    let dragStartPos = 0;
+    let raf = null;
+    let isMobile = window.matchMedia('(max-width: 640px)').matches;
+    let flippedIndex = null;
+
+    const container = document.getElementById('tactileDeck');
+    const viewport = document.getElementById('deckInteractiveArea');
+    const dotsEl = document.getElementById('dots');
+    const searchInput = document.getElementById('searchInput');
+    const searchBar = document.getElementById('searchBar');
+    const searchClear = document.getElementById('searchClear');
+    const searchSuggestions = document.getElementById('searchSuggestions');
+    const suggestionList = document.getElementById('suggestionList');
+
+    async function init() {
+      await loadData();
+      checkDb();
+
+      items.forEach(() => {
+        const d = document.createElement('div');
+        d.className = 'dot';
+        dotsEl.appendChild(d);
+      });
+
+      window.matchMedia('(max-width: 640px)').addEventListener('change', (e) => {
+        isMobile = e.matches;
+        render();
+      });
+
+      function shortestOffset(index, pos) {
+        let raw = index - pos;
+        raw = ((raw % N) + N) % N;
+        if (raw > N / 2) raw -= N;
+        return raw;
+      }
+
+      function cardHeightFor(subsCount) {
+        const base = isMobile ? BASE_HEIGHT_MOBILE : BASE_HEIGHT_DESKTOP;
+        const needed = HEADER_HEIGHT + subsCount * ROW_HEIGHT + VPAD;
+        return Math.max(base, Math.min(needed, MAX_CARD_HEIGHT));
+      }
+
+      function unflip() {
+        if (flippedIndex === null) return;
+        flippedIndex = null;
+        viewport.style.height = '';
+        render();
+      }
+
+      function openFlip(index) {
+        flippedIndex = index;
+        viewport.style.height = cardHeightFor(items[index].subs.length) + VPAD + 'px';
+        render();
+      }
+
+      function render() {
+        container.innerHTML = '';
+        const rounded = ((Math.round(position) % N) + N) % N;
+
+        [...dotsEl.children].forEach((d, i) => d.classList.toggle('active', i === rounded));
+
+        items.forEach((item, index) => {
+          const offset = shortestOffset(index, position);
+          const absOffset = Math.abs(offset);
+          if (absOffset > 3) return;
+
+          const theme = THEMES[item.theme % THEMES.length];
+          const primaryPos = offset * spacingValue;
+          const zPos = -absOffset * zDepthStep;
+          const rotAngle = -offset * curveAngle;
+          const scale = Math.max(1 - absOffset * 0.16, 0.4);
+          const isCenter = index === rounded && absOffset < 0.5;
+          const isFlipped = isCenter && flippedIndex === index;
+
+          const btn = document.createElement('div');
+          btn.className = 'tactile-btn' + (isCenter ? ' center' : '') + (isFlipped ? ' flipped' : '');
+          btn.style.setProperty('--card-gradient', theme.gradient);
+          btn.style.setProperty('--card-shade', theme.shade);
+
+          if (isFlipped) {
+            const h = cardHeightFor(item.subs.length);
+            btn.style.height = h + 'px';
+          }
+
+          const transform = isMobile
+            ? `translateY(${primaryPos}px) translateZ(${zPos}px) rotateX(${-rotAngle}deg) scale(${scale})`
+            : `translateX(${primaryPos}px) translateZ(${zPos}px) rotateY(${rotAngle}deg) scale(${scale})`;
+          btn.style.transform = transform;
+
+          btn.style.zIndex = isFlipped ? 500 : Math.round(100 - absOffset * 10);
+          btn.style.opacity = Math.max(1 - absOffset * 0.32, 0);
+          btn.style.pointerEvents = absOffset > 3 ? 'none' : 'auto';
+          btn.style.filter = isCenter ? 'none' : `brightness(${Math.max(1 - absOffset * 0.2, 0.4)})`;
+
+          const subsHtml = item.subs.map(s => `<div class="sub-item" data-sub="${s}">${s}</div>`).join('');
+
+          btn.innerHTML = `
       <div class="btn-3d-wrapper">
         <div class="btn-bezel-back"></div>
         <div class="btn-bezel-fill"></div>
@@ -683,253 +773,379 @@ function render() {
         </div>
       </div>`;
 
-    btn.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      btn.classList.add('pressed');
-    });
-    const release = () => btn.classList.remove('pressed');
-    btn.addEventListener('pointerup', release);
-    btn.addEventListener('pointerleave', release);
+          btn.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            btn.classList.add('pressed');
+          });
+          const release = () => btn.classList.remove('pressed');
+          btn.addEventListener('pointerup', release);
+          btn.addEventListener('pointerleave', release);
 
-    btn.querySelectorAll('.sub-item').forEach(el => {
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        console.log('Triggered sub-action:', item.text, '->', el.dataset.sub);
-      });
-    });
+          btn.querySelectorAll('.sub-item').forEach(el => {
+            el.addEventListener('click', (e) => {
+              e.stopPropagation();
+              // Fire the same navigation event as search results
+              const evt = new CustomEvent('deck:navigate', {
+                bubbles: true,
+                detail: { category: item.text, sub: el.dataset.sub, itemIndex: index }
+              });
+              document.dispatchEvent(evt);
+              showNavToast(item.text, el.dataset.sub);
+            });
+          });
 
-    const backClose = btn.querySelector('.back-close');
-    if (backClose) {
-      backClose.addEventListener('click', (e) => {
-        e.stopPropagation();
-        unflip();
-      });
-    }
+          // Allow wheel events inside sub-list to scroll it, not the deck
+          const subListEl = btn.querySelector('.sub-list');
+          if (subListEl) {
+            subListEl.addEventListener('wheel', (e) => {
+              e.stopPropagation();
+              // Let the browser handle natural scrolling within the list
+            }, { passive: true });
 
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (dragMoved) return;
-      if (absOffset < 0.4) {
-        if (flippedIndex === index) {
-          unflip();
-        } else {
-          openFlip(index);
-        }
-      } else {
-        unflip();
-        goTo(index);
+            // Touch scroll passthrough
+            subListEl.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+            subListEl.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: true });
+          }
+
+          const backClose = btn.querySelector('.back-close');
+          if (backClose) {
+            backClose.addEventListener('click', (e) => {
+              e.stopPropagation();
+              unflip();
+            });
+          }
+
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (dragMoved) return;
+            if (absOffset < 0.4) {
+              if (flippedIndex === index) {
+                unflip();
+              } else {
+                openFlip(index);
+              }
+            } else {
+              unflip();
+              goTo(index);
+            }
+          });
+
+          container.appendChild(btn);
+        });
       }
-    });
 
-    container.appendChild(btn);
-  });
-}
+      function goTo(index, onComplete) {
+        const offset = shortestOffset(index, position);
+        animateTo(position + offset, onComplete);
+      }
 
-function goTo(index, onComplete) {
-  const offset = shortestOffset(index, position);
-  animateTo(position + offset, onComplete);
-}
+      function animateTo(target, onComplete) {
+        cancelAnimationFrame(raf);
+        const startPos = position;
+        const startTime = performance.now();
+        const dist = target - startPos;
+        const duration = Math.min(Math.max(Math.abs(dist) * 140, 160), 520);
 
-function animateTo(target, onComplete) {
-  cancelAnimationFrame(raf);
-  function step() {
-    const diff = target - position;
-    if (Math.abs(diff) < 0.001) {
-      position = target;
-      render();
-      if (onComplete) onComplete();
-      return;
-    }
-    position += diff * 0.2;
-    render();
-    raf = requestAnimationFrame(step);
-  }
-  step();
-}
+        function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
 
-function settle() {
-  animateTo(Math.round(position));
-}
+        function step(now) {
+          const elapsed = now - startTime;
+          const t = Math.min(elapsed / duration, 1);
+          position = startPos + dist * easeOutCubic(t);
+          render();
+          if (t < 1) {
+            raf = requestAnimationFrame(step);
+          } else {
+            position = target;
+            render();
+            if (onComplete) onComplete();
+          }
+        }
+        raf = requestAnimationFrame(step);
+      }
 
-viewport.addEventListener('pointerdown', (e) => {
-  dragging = true;
-  dragMoved = false;
-  dragStart = isMobile ? e.clientY : e.clientX;
-  dragStartPos = position;
-  cancelAnimationFrame(raf);
-  viewport.setPointerCapture(e.pointerId);
-});
+      function settle() {
+        animateTo(Math.round(position));
+      }
 
-viewport.addEventListener('pointermove', (e) => {
-  if (!dragging) return;
-  const current = isMobile ? e.clientY : e.clientX;
-  const delta = current - dragStart;
-  if (Math.abs(delta) > 6) {
-    dragMoved = true;
-    if (flippedIndex !== null) unflip();
-  }
-  position = dragStartPos - delta / spacingValue;
-  render();
-});
+      viewport.addEventListener('pointerdown', (e) => {
+        dragging = true;
+        dragMoved = false;
+        dragStart = isMobile ? e.clientY : e.clientX;
+        dragStartPos = position;
+        cancelAnimationFrame(raf);
+        viewport.setPointerCapture(e.pointerId);
+      });
 
-function endDrag() {
-  if (!dragging) return;
-  dragging = false;
-  settle();
-}
-viewport.addEventListener('pointerup', endDrag);
-viewport.addEventListener('pointercancel', endDrag);
+      viewport.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        const current = isMobile ? e.clientY : e.clientX;
+        const delta = current - dragStart;
+        if (Math.abs(delta) > 6) {
+          dragMoved = true;
+          if (flippedIndex !== null) unflip();
+        }
+        position = dragStartPos - delta / spacingValue;
+        render();
+      });
 
-viewport.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  cancelAnimationFrame(raf);
-  if (flippedIndex !== null) unflip();
-  position += e.deltaY * 0.0025;
-  render();
-  clearTimeout(viewport._wheelTimer);
-  viewport._wheelTimer = setTimeout(settle, 120);
-}, { passive: false });
+      function endDrag() {
+        if (!dragging) return;
+        dragging = false;
+        settle();
+      }
+      viewport.addEventListener('pointerup', endDrag);
+      viewport.addEventListener('pointercancel', endDrag);
 
-viewport.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') unflip();
-  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { unflip(); animateTo(Math.round(position) + 1); }
-  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { unflip(); animateTo(Math.round(position) - 1); }
-});
+      let wheelVelocity = 0;
+      let wheelRaf = null;
+      let wheelSettleTimer = null;
 
-document.getElementById('navLeft').addEventListener('click', () => { unflip(); animateTo(Math.round(position) - 1); });
-document.getElementById('navRight').addEventListener('click', () => { unflip(); animateTo(Math.round(position) + 1); });
+      viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
 
-// ---------- Search ----------
-  const searchWrapEl = document.getElementById('searchWrap');
-  const searchIndex = [];
+        // If a card is flipped and wheel is over the sub-list, let it scroll naturally
+        if (flippedIndex !== null) {
+          const subList = container.querySelector('.tactile-btn.flipped .sub-list');
+          if (subList && subList.contains(e.target)) return;
+          unflip();
+        }
 
-  document.addEventListener('click', (e) => {
-    if (flippedIndex !== null && !viewport.contains(e.target)) unflip();
-    if (!searchWrapEl.contains(e.target)) closeSuggestions();
-  });
-  items.forEach((item, itemIndex) => {
-    item.subs.forEach(sub => {
-      searchIndex.push({ itemIndex, category: item.text, sub, theme: item.theme, keywords: item.keywords || [] });
-    });
-  });
+        cancelAnimationFrame(raf);
+        cancelAnimationFrame(wheelRaf);
+        clearTimeout(wheelSettleTimer);
 
-let activeSuggestion = -1;
-let currentMatches = [];
+        // Normalise delta — trackpads send small floats, wheels send 100/120
+        const normalized = Math.abs(e.deltaY) > 50
+          ? Math.sign(e.deltaY) * 0.006   // mouse wheel: step by discrete amount
+          : e.deltaY * 0.0018;             // trackpad: fine-grained
 
-function closeSuggestions() {
-  searchSuggestions.classList.remove('open');
-  activeSuggestion = -1;
-}
+        wheelVelocity += normalized;
 
-function highlightSub(itemIndex, sub) {
-  const el = container.querySelector(`.tactile-btn.flipped .sub-item[data-sub="${sub}"]`);
-  if (!el) return;
-  el.classList.add('sub-item-highlight');
-  setTimeout(() => el.classList.remove('sub-item-highlight'), 1400);
-}
+        // Decay loop — smooth momentum coast
+        function coasting() {
+          position += wheelVelocity;
+          wheelVelocity *= 0.82;
+          render();
+          if (Math.abs(wheelVelocity) > 0.0005) {
+            wheelRaf = requestAnimationFrame(coasting);
+          } else {
+            wheelVelocity = 0;
+            wheelSettleTimer = setTimeout(settle, 60);
+          }
+        }
+        wheelRaf = requestAnimationFrame(coasting);
+      }, { passive: false });
 
-function selectMatch(match) {
-  searchInput.value = '';
-  searchClear.classList.remove('visible');
-  closeSuggestions();
-  searchInput.blur();
-  unflip();
-  goTo(match.itemIndex, () => {
-    openFlip(match.itemIndex);
-    highlightSub(match.itemIndex, match.sub);
-  });
-}
+      viewport.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') unflip();
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { unflip(); animateTo(Math.round(position) + 1); }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { unflip(); animateTo(Math.round(position) - 1); }
+      });
 
-function renderSuggestions(query) {
-  const q = query.trim().toLowerCase();
-  if (!q) {
-    closeSuggestions();
-    return;
-  }
-  currentMatches = searchIndex.filter(m =>
-    m.sub.toLowerCase().includes(q) ||
-    m.category.toLowerCase().includes(q) ||
-    (m.keywords || []).some(k => k.toLowerCase().includes(q))
-  ).slice(0, 8);
+      document.getElementById('navLeft').addEventListener('click', () => { unflip(); animateTo(Math.round(position) - 1); });
+      document.getElementById('navRight').addEventListener('click', () => { unflip(); animateTo(Math.round(position) + 1); });
 
-  activeSuggestion = -1;
-  suggestionList.innerHTML = '';
+      // ---------- Search ----------
+      const searchWrapEl = document.getElementById('searchWrap');
+      const searchIndex = [];
 
-  if (currentMatches.length === 0) {
-    suggestionList.innerHTML = '<div class="suggestion-empty">No matches</div>';
-  } else {
-    currentMatches.forEach((match, i) => {
-      const row = document.createElement('div');
-      row.className = 'suggestion-row';
-      row.dataset.index = i;
-      row.innerHTML = `
+      document.addEventListener('click', (e) => {
+        if (flippedIndex !== null && !viewport.contains(e.target)) unflip();
+        if (!searchWrapEl.contains(e.target)) closeSuggestions();
+      });
+      items.forEach((item, itemIndex) => {
+        item.subs.forEach(sub => {
+          searchIndex.push({ itemIndex, category: item.text, sub, theme: item.theme, keywords: item.keywords || [] });
+        });
+      });
+
+      let activeSuggestion = -1;
+      let currentMatches = [];
+
+      function closeSuggestions() {
+        searchSuggestions.classList.remove('open');
+        activeSuggestion = -1;
+      }
+
+      function highlightSub(itemIndex, sub) {
+        const el = container.querySelector(`.tactile-btn.flipped .sub-item[data-sub="${sub}"]`);
+        if (!el) return;
+        el.classList.add('sub-item-highlight');
+        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        setTimeout(() => el.classList.remove('sub-item-highlight'), 1400);
+      }
+
+      function openSubPage(match) {
+        // Navigate to the sub-item's page. Use the match's url if available,
+        // otherwise fire the same click handler sub-items use.
+        if (match.url) {
+          window.location.href = match.url;
+          return;
+        }
+        // Fallback: dispatch a custom event so host page can handle navigation.
+        const evt = new CustomEvent('deck:navigate', {
+          bubbles: true,
+          detail: { category: match.category, sub: match.sub, itemIndex: match.itemIndex }
+        });
+        document.dispatchEvent(evt);
+        // For demo: log and show a brief toast
+        showNavToast(match.category, match.sub);
+      }
+
+      function showNavToast(category, sub) {
+        let toast = document.getElementById('deckToast');
+        if (!toast) {
+          toast = document.createElement('div');
+          toast.id = 'deckToast';
+          toast.style.cssText = `
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(12px);
+      background: rgba(30,32,44,0.96); border: 1px solid rgba(255,255,255,0.1);
+      color: #fff; font-size: 13px; font-weight: 500; font-family: inherit;
+      padding: 10px 18px; border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      opacity: 0; transition: opacity 0.22s ease, transform 0.22s ease;
+      pointer-events: none; z-index: 9000; white-space: nowrap;
+    `;
+          document.body.appendChild(toast);
+        }
+        toast.innerHTML = `<span style="opacity:0.5;margin-right:6px;">Opening</span>${sub} <span style="opacity:0.4;margin:0 4px;">·</span> <span style="opacity:0.5">${category}</span>`;
+        // Animate in
+        requestAnimationFrame(() => {
+          toast.style.opacity = '1';
+          toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transform = 'translateX(-50%) translateY(8px)';
+        }, 2200);
+      }
+
+      function selectMatch(match, openCard = false) {
+        searchInput.value = '';
+        searchClear.classList.remove('visible');
+        closeSuggestions();
+        searchInput.blur();
+
+        if (openCard) {
+          // User explicitly wants the card (e.g. searched for a category name)
+          unflip();
+          goTo(match.itemIndex, () => {
+            openFlip(match.itemIndex);
+            highlightSub(match.itemIndex, match.sub);
+          });
+        } else {
+          // Default: navigate directly to the sub-item's page
+          openSubPage(match);
+        }
+      }
+
+      function renderSuggestions(query) {
+        const q = query.trim().toLowerCase();
+        if (!q) {
+          closeSuggestions();
+          return;
+        }
+
+        // Tag each match: isCategoryMatch = query matched the card's category name
+        currentMatches = searchIndex.filter(m =>
+          m.sub.toLowerCase().includes(q) ||
+          m.category.toLowerCase().includes(q) ||
+          (m.keywords || []).some(k => k.toLowerCase().includes(q))
+        ).slice(0, 8).map(m => ({
+          ...m,
+          isCategoryMatch: m.category.toLowerCase().includes(q) && !m.sub.toLowerCase().includes(q),
+        }));
+
+        activeSuggestion = -1;
+        suggestionList.innerHTML = '';
+
+        if (currentMatches.length === 0) {
+          suggestionList.innerHTML = '<div class="suggestion-empty">No matches</div>';
+        } else {
+          currentMatches.forEach((match, i) => {
+            const row = document.createElement('div');
+            row.className = 'suggestion-row';
+            row.dataset.index = i;
+
+            // Icon: card icon for category matches, arrow for direct page navigation
+            const actionIcon = match.isCategoryMatch
+              ? `<svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="opacity:0.4;flex-shrink:0"><rect x="1" y="1" width="10" height="10" rx="3" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="6" x2="8" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="6" y1="4" x2="8" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="6" y1="8" x2="8" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`
+              : `<svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="opacity:0.4;flex-shrink:0"><line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="3.5" x2="10" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="8.5" x2="10" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`;
+
+            row.innerHTML = `
         <div class="suggestion-dot" style="background:${THEMES[match.theme % THEMES.length].dot}"></div>
         <div class="suggestion-text">
           <div class="suggestion-sub">${match.sub}</div>
           <div class="suggestion-cat">${match.category}</div>
-        </div>`;
-      row.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        selectMatch(match);
+        </div>
+        ${actionIcon}`;
+
+            row.addEventListener('mousedown', (e) => {
+              e.preventDefault();
+              // Category-level matches open the card; sub-item matches go to the page
+              selectMatch(match, match.isCategoryMatch);
+            });
+            suggestionList.appendChild(row);
+          });
+        }
+        searchSuggestions.classList.add('open');
+      }
+
+      function updateActiveHighlight() {
+        [...suggestionList.children].forEach((row, i) => {
+          row.classList.toggle('active', i === activeSuggestion);
+        });
+      }
+
+      searchInput.addEventListener('input', () => {
+        searchClear.classList.toggle('visible', searchInput.value.length > 0);
+        renderSuggestions(searchInput.value);
       });
-      suggestionList.appendChild(row);
-    });
-  }
-  searchSuggestions.classList.add('open');
-}
 
-function updateActiveHighlight() {
-  [...suggestionList.children].forEach((row, i) => {
-    row.classList.toggle('active', i === activeSuggestion);
-  });
-}
+      searchInput.addEventListener('focus', () => {
+        searchBar.classList.add('focused');
+        if (searchInput.value.trim()) renderSuggestions(searchInput.value);
+      });
 
-searchInput.addEventListener('input', () => {
-  searchClear.classList.toggle('visible', searchInput.value.length > 0);
-  renderSuggestions(searchInput.value);
-});
+      searchInput.addEventListener('blur', () => {
+        searchBar.classList.remove('focused');
+      });
 
-searchInput.addEventListener('focus', () => {
-  searchBar.classList.add('focused');
-  if (searchInput.value.trim()) renderSuggestions(searchInput.value);
-});
+      searchInput.addEventListener('keydown', (e) => {
+        if (!searchSuggestions.classList.contains('open') || currentMatches.length === 0) return;
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          activeSuggestion = Math.min(activeSuggestion + 1, currentMatches.length - 1);
+          updateActiveHighlight();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          activeSuggestion = Math.max(activeSuggestion - 1, 0);
+          updateActiveHighlight();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          const pick = activeSuggestion >= 0 ? currentMatches[activeSuggestion] : currentMatches[0];
+          if (pick) selectMatch(pick, pick.isCategoryMatch);
+        } else if (e.key === 'Escape') {
+          closeSuggestions();
+          searchInput.blur();
+        }
+      });
 
-searchInput.addEventListener('blur', () => {
-  searchBar.classList.remove('focused');
-});
+      searchClear.addEventListener('click', () => {
+        searchInput.value = '';
+        searchClear.classList.remove('visible');
+        closeSuggestions();
+        searchInput.focus();
+      });
 
-searchInput.addEventListener('keydown', (e) => {
-  if (!searchSuggestions.classList.contains('open') || currentMatches.length === 0) return;
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    activeSuggestion = Math.min(activeSuggestion + 1, currentMatches.length - 1);
-    updateActiveHighlight();
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    activeSuggestion = Math.max(activeSuggestion - 1, 0);
-    updateActiveHighlight();
-  } else if (e.key === 'Enter') {
-    e.preventDefault();
-    const pick = activeSuggestion >= 0 ? currentMatches[activeSuggestion] : currentMatches[0];
-    if (pick) selectMatch(pick);
-  } else if (e.key === 'Escape') {
-    closeSuggestions();
-    searchInput.blur();
-  }
-});
+      render();
+    } // end init()
 
-searchClear.addEventListener('click', () => {
-  searchInput.value = '';
-  searchClear.classList.remove('visible');
-  closeSuggestions();
-  searchInput.focus();
-});
-
-  render();
-} // end init()
-
-init();
-</script>
+    init();
+  </script>
 
 </body>
+
 </html>
