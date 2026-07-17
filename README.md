@@ -1,46 +1,60 @@
-# Serverless Steel Handbook Query Engine
+# Engineering Datasheet Query Engine
 
-**Deployment:** GitHub Pages
-**Database:** SQL.js (In-Memory SQLite Multi-Database Engine)
-**Driver:** CDN-loaded sql-wasm.js / sql-wasm.wasm
-**Index Registry:** `database/databases.json`
+**Status:** Active development — hybrid JSON index + Firestore architecture
+**Hosting:** GitHub Pages (static) + Firestore (live data)
+**Data Source:** YH Handbook (260+ page steel engineering catalog)
 
-An ultra-lightweight, zero-cost, online-first database query engine built specifically to search, filter, and calculate technical specifications and physical weights from the Yick Hoe Steel Handbook (Pages 167-175).
+Converts complex engineering datasheets from PDF → structured JSON → searchable web interface. After discovering that rule-based PDF-to-SQLite extraction is unreliable for heterogeneous engineering tables, the project pivoted to a document-based model: JSON as the master archive, Firestore for live online queries.
 
-This expanded architecture features an in-browser index manager that reads a central JSON manifest on startup. This allows users to choose from various distinct steel databases on demand, which then mounts selected `.db` files into client memory dynamically.
-
-## How It Works (Dynamic Multi-DB Pipeline)
-
-This modular pipeline allows the system to remain highly scalable:
+## Architecture
 
 ```text
-+------------------ Client Browser ---------------+           +--- CDN & GitHub Pages ---+
-|                                                 |           |                          |
-|  [ User Interface (HTML5/CSS/JS) ]              |           |                          |
-|         │                                       |           |                          |
-|         ▼ (Pre-flight Load)                     |           |                          |
-|   Fetches databases.json registry <─────────────┼───────────┼── [ database/databases.json ]
-|         │                                       |           |   (Index of available DBs)
-|         ▼ (User selects target DB)              |           |                          |
-|   Fetches target .db file into RAM <────────────┼───────────┼── [ database/plates.db ] 
-|         │                                       |           |   [ database/specs.db ]  
-|         ▼ (Discovers schema via sqlite_master)  |           |                          |
-|  [ SQL.js Database Instance (RAM) ]             |           |                          |
-|         │                                       |           |                          |
-|         ▼ (User queries or views source)        |           |                          |
-|  Executes query or displays reference source <──┼───────────┼── [ page/ folder ]       |
-|         │                                       |           |   (Source page PNGs)     |
-|         ▼ (Parses result / renders source)      |           |                          |
-|  [ HTML UI Updates (DOM Table & Page Viewer) ]  |           |                          |
-|                                                 |           |                          |
-+-------------------------------------------------+           +--------------------------+
+                     GitHub Pages (static)
+                             │
+                ┌────────────┴────────────┐
+                │                         │
+        catalogue.json              index.html
+        (directory tree,            (viewer UI)
+         search metadata)
+                │                         │
+                ▼                         ▼
+         User browses               User searches
+         categories                 or filters
+                │                         │
+                └────────┬───────────────┘
+                         │
+                         ▼
+                    Firestore
+               (full datasheet content)
+                         │
+                         ▼
+               Returns single document
+               → rendered as HTML table
 ```
 
-*   **Manifest Pre-flight:** On startup, `index.html` reads `database/databases.json` to dynamically build cards or selection panels representing your different steel databases.
-*   **WebAssembly Bootstrapping:** The SQL.js runtime is fetched from cdnjs, loading `sql-wasm.wasm` inside the client environment.
-*   **Lazy DB Mount:** When a user clicks a database choice, the client fires a fetch request for that specific `.db` file path, loads the binary buffer into client RAM, and disposes of the previous database context to keep memory footprints low.
-*   **Dynamic Schema Discovery:** The application queries the `sqlite_master` table to automatically identify tables and columns, allowing the search UI to adapt dynamically regardless of unconfirmed schemas.
-*   **Visual Reference Sourcing:** The UI displays the associated handbook scan from the `page/` folder, with a dedicated button to download the original PNG page for offline viewing.
+- **JSON index** lives on GitHub Pages (free, fast, version-controlled). Contains the directory tree, search metadata, and category structure. Small download (~50 KB).
+- **Firestore** stores the full engineering datasheets. Only fetched when a user clicks a specific component. Single-document reads minimize Firestore quota usage.
+- **Browser** renders everything as interactive HTML tables.
+
+## Repository File Tree
+
+```text
+├── index.html              # Main viewer UI
+├── Plumber/                # PDF extraction experiments (archive)
+│   ├── Plumber_1.py .. Plumber_6.py
+│   ├── Plumber.py
+│   └── README.md
+├── JSON Mapping/           # JSON-based extraction pipeline
+│   ├── build_index.py      # Builds structured JSON index from docx
+│   ├── YH_HandBook.json    # Master JSON (~10 MB)
+│   └── README.md
+├── database/               # Legacy SQLite databases
+│   └── databases.json
+├── page/                   # Source page images
+│   ├── page_167.png
+│   └── ...
+└── README.md
+```
 
 ## Repository File Tree
 
@@ -59,12 +73,9 @@ This modular pipeline allows the system to remain highly scalable:
 └── README.md                    # Project documentation
 ```
 
-## Deployment Steps
+## Pull Requests
 
-1.  **Compile Databases:** Run your Python compiler scripts to output your SQLite `.db` binaries, and save them in the `database/` folder.
-2.  **Edit Registry:** Ensure any new database files are registered in `database/databases.json` with matching reference images in the `page/` folder.
-3.  **Commit to GitHub:** Push your clean file tree online to your repository.
-4.  **Host Live:** Activate GitHub Pages under Repository Settings to view your serverless steel portal.
+Contributions are welcome. The JSON schema in `JSON Mapping/` and the Firestore ingestion pipeline are the active development areas.
 
 ## Project Timeline & Development History
 
@@ -89,27 +100,43 @@ Two competing approaches were considered:
 ### Phase 4: Pivot — Multi-DB by Sections
 Split the PDF into logical sections, each section → its own `.db` file. Each `.db` is smaller, more focused, and easier to verify. The frontend dynamically loads the correct `.db` based on user selection using SQL.js + a manifest (`databases.json`). This is the architecture reflected in the current codebase.
 
-### Phase 5: Split Branch — JSON Generation (Promising)
+### Phase 5: JSON Generation (Breakthrough)
 An experimental branch explored converting `.docs` files directly to **`.json`** instead of `.db`. Results:
-- **Very reliable** extraction (no table-boundary detection needed)
+- **Very reliable** extraction (no table-boundary detection needed — docx has native table structure)
 - **Very fast queries** (JSON parse + filter in-memory)
-- This proved that a document-based format is better suited than relational tables for this data
+- **Docx is the wrong source** — the real bottleneck is PDF extraction, not the storage format
 
-### Phase 6: Active Branch — Firestore Online Database
-Building on the JSON insight, the current active direction moves to **Firestore** (Google's serverless NoSQL document database). Benefits:
-- **Multiple queries across datasets** — not constrained by loading one `.db` at a time
-- **Document model** — each table/spec can have its own schema, handles merged cells and sub-tables natively
-- **Online, always up-to-date** — no need to re-deploy GitHub Pages for data changes
+### Phase 6: Active Branch — Hybrid JSON Index + Firestore
+
+After evaluating JSON (simple, fast, free) vs Firestore (online, scalable, queryable), the chosen architecture is **both**:
+
+- **JSON index** on GitHub Pages — lightweight catalogue (~50 KB), instant load, version-controlled directory of all components
+- **Firestore** for live datasheet content — single-document reads per component, minimal quota usage, no re-deploy needed for updates
+
+**Firestore free tier limits** (per Google Cloud project):
+| Resource | Limit |
+|----------|-------|
+| Stored data | 1 GiB |
+| Document reads | 50,000/day |
+| Document writes | 20,000/day |
+| Document deletes | 20,000/day |
+| Data transfer | 10 GiB/month |
+
+For an engineering datasheet viewer, this is more than sufficient: a user browsing components would consume ~1-5 reads per session.
+
+**Why not pure SQLite?** SQLite's rigid rectangular schema (fixed columns per row) cannot handle engineering tables with variable column counts, merged cells, sub-tables, and hierarchical headers. SQLite is excellent for transactional data but fundamentally mismatched to heterogeneous datasheets.
+
+**Why not pure Firestore?** The JSON index on GitHub Pages eliminates the need to download or query the entire dataset on every visit. The 10 MB master JSON stays in the repo; the browser only loads the ~50 KB catalogue index.
 
 ### Phase 7: Future Roadmap
 
-- [ ] **Step 1** — Set up Firestore database and configure access
-- [ ] **Step 2** — Create script to ingest JSON data into Firestore collections
-- [ ] **Step 3** — Successfully store and read data from Firestore via the frontend
-- [ ] **Step 4** — Enhance doc→JSON script for better header/page-number extraction and data sorting
-- [ ] **Step 5** — Build enhanced query layer: cross-datasheet lookups, pagination, filtering
-- [ ] **Step 6** — Split UI into 3 sections: **Login** (`index.html`, simple encryption), **Landing** (main category selection → sub-directory query), **Main Page** (compare data, show related PDFs, cross-datasheet queries)
-- [ ] **Step 7** — **Launch V1**, iterate on feedback, launch **V2**
+- [ ] **v0.4.0a** — Set up Firestore project, configure security rules, establish schema
+- [ ] **v0.4.0b** — Write ingestion script to push JSON datasheets into Firestore collections
+- [ ] **v0.4.0c** — Build GitHub Pages frontend: fetch catalogue.json → display directory tree → on click, fetch Firestore doc → render as HTML table
+- [ ] **v0.4.0d** — Enhance doc→JSON pipeline: page number extraction, cross-document references, data sorting
+- [ ] **v0.4.0e** — Search & filter: text search across catalogue, category filtering, material/standard filters
+- [ ] **v0.5.0** — Split UI: **Login** (simple encryption), **Landing** (category selection → sub-directory drill-down), **Main Page** (compare components side-by-side, show source PDFs, cross-datasheet queries)
+- [ ] **v0.6.0** — **Launch V1**, gather feedback, iterate toward V2
 
 ### Version Tracker
 
@@ -117,5 +144,8 @@ Building on the JSON insight, the current active direction moves to **Firestore*
 - [x] **v0.1.1** — Monolithic DB attempt: Plumber pipeline to extract entire YH Handbook into one `.db`. **FAILED** — page layout variance too extreme for rule-based parsing.
 - [x] **v0.2.0** — Pivot to multi-DB by sections. SQL.js in-browser engine + `databases.json` manifest for dynamic `.db` loading.
 - [x] **v0.2.1** — JSON dynamic manifest engine with multi-DB lazy loading and dynamic tables UI.
-- [x] **v0.3.0** — Split branch: `.docs` → `.json` generation. Proved document-based format is far more reliable than relational tables for this data.
-- [ ] **v0.4.0** — Active branch: Firestore online database. Cross-dataset queries, NoSQL document model, no re-deploy needed for data changes.
+- [x] **v0.3.0** — `.docs` → `.json` generation. Proved document-based format is far more reliable than relational tables for this data.
+- [x] **v0.3.1** — `JSON Mapping/build_index.py`: full table parser with multi-level header joining, forward-fill, section hierarchy tracking, and leftmost-column index for O(1) lookups.
+- [ ] **v0.4.0** — Hybrid architecture: JSON catalogue index (GitHub Pages) + Firestore datasheet content. First online queryable engineering database.
+- [ ] **v0.5.0** — Full UI split: login, category browser, comparison mode, cross-datasheet search.
+- [ ] **v0.6.0** — Public launch V1.
