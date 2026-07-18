@@ -183,7 +183,9 @@
       opacity: 0;
       overflow: hidden;
       transform: translateY(-6px);
-      transition: max-height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.22s ease, transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+      transition: max-height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+        opacity 0.22s ease,
+        transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
       pointer-events: none;
     }
 
@@ -257,6 +259,7 @@
       text-align: center;
     }
 
+    /* ── Viewport ── */
     .deck-viewport {
       perspective: 1400px;
       width: 100%;
@@ -268,7 +271,8 @@
       position: relative;
       touch-action: none;
       outline: none;
-      transition: height 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
+      /* FIX: smooth height transition when card flips open/closed */
+      transition: height 0.42s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
     .deck-container {
@@ -281,6 +285,7 @@
       justify-content: center;
     }
 
+    /* ── Cards ── */
     .tactile-btn {
       position: absolute;
       transform-style: preserve-3d;
@@ -290,7 +295,9 @@
       user-select: none;
       backface-visibility: hidden;
       will-change: transform, opacity;
-      transition: height 0.36s cubic-bezier(0.2, 0.8, 0.2, 1);
+      /* FIX: height transition for flip expand, separate from transform */
+      transition: height 0.42s cubic-bezier(0.2, 0.8, 0.2, 1),
+        opacity 0.18s ease;
     }
 
     .btn-3d-wrapper {
@@ -298,6 +305,7 @@
       transform-style: preserve-3d;
       width: 100%;
       height: 100%;
+      /* FIX: transition only transform, not height (height is on parent) */
       transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
@@ -305,19 +313,21 @@
       transform: translate3d(0, 4px, -8px) !important;
     }
 
-    .btn-bezel-back {
-      position: absolute;
-      inset: 0;
-      border-radius: 22px;
-      background: var(--card-shade);
-      transform: translateZ(-14px);
-    }
-
+    /* FIX: pointer-events none so bezels never intercept clicks */
+    .btn-bezel-back,
     .btn-bezel-fill {
       position: absolute;
       inset: 0;
       border-radius: 22px;
       background: var(--card-shade);
+      pointer-events: none;
+    }
+
+    .btn-bezel-back {
+      transform: translateZ(-14px);
+    }
+
+    .btn-bezel-fill {
       transform: translateZ(-7px);
     }
 
@@ -325,7 +335,7 @@
       position: absolute;
       inset: 0;
       transform-style: preserve-3d;
-      transition: transform 0.5s cubic-bezier(0.4, 0.1, 0.2, 1);
+      transition: transform 0.48s cubic-bezier(0.4, 0.1, 0.2, 1);
     }
 
     .tactile-btn.flipped .flip-stage {
@@ -339,9 +349,8 @@
       backface-visibility: hidden;
       box-sizing: border-box;
       background: var(--card-gradient);
-      box-shadow:
-        0 14px 30px -10px rgba(0, 0, 0, 0.55),
-        0 2px 6px rgba(0, 0, 0, 0.3);
+      /* FIX: removed box-shadow that caused "border" appearance on side bezels */
+      box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.6);
       overflow: hidden;
     }
 
@@ -400,8 +409,8 @@
       display: flex;
       flex-direction: column;
       padding: 18px;
-      /* Fill the face exactly — sub-list scrolls within this */
       height: 100%;
+      box-sizing: border-box;
     }
 
     .back-header {
@@ -430,6 +439,11 @@
       justify-content: center;
       font-size: 11px;
       flex-shrink: 0;
+      cursor: pointer;
+      /* FIX: ensure close button is always interactive */
+      pointer-events: auto;
+      position: relative;
+      z-index: 10;
     }
 
     .sub-list {
@@ -460,6 +474,7 @@
       font-weight: 500;
       color: rgba(255, 255, 255, 0.92);
       transition: background 0.15s ease, box-shadow 0.15s ease;
+      cursor: pointer;
     }
 
     .sub-item:hover {
@@ -471,6 +486,7 @@
       box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.5);
     }
 
+    /* ── Nav row ── */
     .nav-row {
       position: absolute;
       left: 0;
@@ -519,18 +535,44 @@
       transform: scale(1.3);
     }
 
+    /* ── Toast ── */
+    #deckToast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      background: rgba(30, 32, 44, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      padding: 10px 18px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      pointer-events: none;
+      z-index: 9000;
+      white-space: nowrap;
+    }
+
+    #deckToast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Mobile ── */
     @media (max-width: 640px) {
 
       html,
       body {
-        height: 100%;
         height: 100dvh;
       }
 
       .deck-wrap {
         display: flex;
         flex-direction: column;
-        height: 100%;
         height: 100dvh;
         padding: 0;
         padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -547,12 +589,19 @@
         flex: 1 1 0;
         min-height: 0;
         height: auto !important;
+        /* FIX: pan-x allows horizontal swipe while allowing sub-list vertical scroll */
         touch-action: pan-x;
+        transition: none;
       }
 
       .tactile-btn {
         width: 200px;
         height: 240px;
+      }
+
+      /* FIX: flipped card on mobile fills the flex area with CSS, not JS */
+      .tactile-btn.flipped {
+        height: calc(100% - 32px);
       }
 
       .nav-row {
@@ -570,7 +619,7 @@
     <div class="search-wrap" id="searchWrap">
       <div class="search-bar" id="searchBar">
         <span class="search-icon">
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
             <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.4" />
             <line x1="10.4" y1="10.4" x2="13.5" y2="13.5" stroke="currentColor" stroke-width="1.4"
               stroke-linecap="round" />
@@ -593,12 +642,15 @@
     <div class="deck-viewport" id="deckInteractiveArea" tabindex="0">
       <div class="deck-container" id="tactileDeck"></div>
     </div>
+
     <div class="nav-row">
       <button class="nav-arrow" id="navLeft" aria-label="Previous">&#8249;</button>
       <div class="dots" id="dots"></div>
       <button class="nav-arrow" id="navRight" aria-label="Next">&#8250;</button>
     </div>
   </div>
+
+  <div id="deckToast"></div>
 
   <script>
     const THEMES = [
@@ -611,12 +663,7 @@
     ];
 
     const CATEGORY_ICONS = [
-      "&#9636;",   // General Information  → square
-      "&#9650;",   // Mild Steel           → triangle
-      "&#9737;",   // Stainless Steel      → sun/circle
-      "&#9881;",   // Alloy & Machinery    → gear
-      "&#10022;",  // Non-Ferrous          → star
-      "&#8734;",   // Appendix             → infinity
+      "&#9636;", "&#9650;", "&#9737;", "&#9881;", "&#10022;", "&#8734;",
     ];
 
     let items = [];
@@ -627,19 +674,16 @@
       const label = document.getElementById('dbLabel');
       const status = document.getElementById('dbStatus');
       const divider = document.getElementById('dbDivider');
-
-      // Show indicator
       status.classList.add('visible');
       divider.style.opacity = '1';
       dot.className = 'db-dot connecting';
       label.className = 'db-label';
       label.textContent = '—';
-
       const t0 = performance.now();
       try {
         const res = await fetch('./database/handbook_steel.db', { method: 'HEAD', cache: 'no-store' });
         const ms = Math.round(performance.now() - t0);
-        if (!res.ok && res.status !== 405) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok && res.status !== 405) throw new Error();
         dot.className = 'db-dot ok';
         label.className = 'db-label ok';
         label.textContent = `${ms}ms`;
@@ -654,7 +698,7 @@
     async function loadData() {
       try {
         const res = await fetch('./database/databases.json');
-        if (!res.ok) throw new Error('Failed to fetch databases.json');
+        if (!res.ok) throw new Error();
         const data = await res.json();
         items = data.catalog.map((cat, i) => ({
           text: cat.category,
@@ -663,9 +707,7 @@
           subs: cat.items.map(item => item.name),
           keywords: cat.items.flatMap(item => [item.name, ...(item.keywords || [])]),
         }));
-      } catch (err) {
-        console.error('Could not load databases.json:', err);
-        // Fallback: single error card
+      } catch {
         items = [{
           text: "Load Error",
           icon: "&#9888;",
@@ -676,11 +718,12 @@
       }
       N = items.length;
     }
+
+    /* ── Layout constants ── */
     const curveAngle = 24;
     const zDepthStep = 110;
     const spacingValue = 150;
     const BASE_HEIGHT_DESKTOP = 260;
-    const BASE_HEIGHT_MOBILE = 240;
     const MAX_CARD_HEIGHT = 480;
     const ROW_HEIGHT = 40;
     const HEADER_HEIGHT = 44;
@@ -695,6 +738,9 @@
     let isMobile = window.matchMedia('(max-width: 640px)').matches;
     let flippedIndex = null;
 
+    /* ── Persistent card node references ── */
+    let cardNodes = [];  // FIX: one node per item, created once
+
     const container = document.getElementById('tactileDeck');
     const viewport = document.getElementById('deckInteractiveArea');
     const dotsEl = document.getElementById('dots');
@@ -704,93 +750,26 @@
     const searchSuggestions = document.getElementById('searchSuggestions');
     const suggestionList = document.getElementById('suggestionList');
 
-    async function init() {
-      await loadData();
-      checkDb();
+    /* ─────────────────────────────────────────
+       FIX: Build DOM once, render() only mutates transforms
+       ───────────────────────────────────────── */
+    function buildDeck() {
+      container.innerHTML = '';
+      cardNodes = [];
 
-      items.forEach(() => {
-        const d = document.createElement('div');
-        d.className = 'dot';
-        dotsEl.appendChild(d);
-      });
+      items.forEach((item, index) => {
+        const theme = THEMES[item.theme % THEMES.length];
 
-      window.matchMedia('(max-width: 640px)').addEventListener('change', (e) => {
-        isMobile = e.matches;
-        render();
-      });
+        const btn = document.createElement('div');
+        btn.className = 'tactile-btn';
+        btn.style.setProperty('--card-gradient', theme.gradient);
+        btn.style.setProperty('--card-shade', theme.shade);
 
-      function shortestOffset(index, pos) {
-        let raw = index - pos;
-        raw = ((raw % N) + N) % N;
-        if (raw > N / 2) raw -= N;
-        return raw;
-      }
+        const subsHtml = item.subs.map(s =>
+          `<div class="sub-item" data-sub="${s.replace(/"/g, '&quot;')}">${s}</div>`
+        ).join('');
 
-      function cardHeightFor(subsCount) {
-        const base = isMobile ? BASE_HEIGHT_MOBILE : BASE_HEIGHT_DESKTOP;
-        const needed = HEADER_HEIGHT + subsCount * ROW_HEIGHT + VPAD;
-        return Math.max(base, Math.min(needed, MAX_CARD_HEIGHT));
-      }
-
-      function openFlip(index) {
-        flippedIndex = index;
-        if (!isMobile) {
-          viewport.style.height = cardHeightFor(items[index].subs.length) + VPAD + 'px';
-        }
-        render();
-      }
-
-      function unflip() {
-        if (flippedIndex === null) return;
-        flippedIndex = null;
-        viewport.style.height = '';
-        render();
-      }
-
-      function render() {
-        container.innerHTML = '';
-        const rounded = ((Math.round(position) % N) + N) % N;
-
-        [...dotsEl.children].forEach((d, i) => d.classList.toggle('active', i === rounded));
-
-        items.forEach((item, index) => {
-          const offset = shortestOffset(index, position);
-          const absOffset = Math.abs(offset);
-          if (absOffset > 3) return;
-
-          const theme = THEMES[item.theme % THEMES.length];
-          const primaryPos = offset * spacingValue;
-          const zPos = -absOffset * zDepthStep;
-          const rotAngle = -offset * curveAngle;
-          const scale = Math.max(1 - absOffset * 0.16, 0.4);
-          const isCenter = index === rounded && absOffset < 0.5;
-          const isFlipped = isCenter && flippedIndex === index;
-
-          const btn = document.createElement('div');
-          btn.className = 'tactile-btn' + (isCenter ? ' center' : '') + (isFlipped ? ' flipped' : '');
-          btn.style.setProperty('--card-gradient', theme.gradient);
-          btn.style.setProperty('--card-shade', theme.shade);
-
-          if (isFlipped) {
-            if (isMobile) {
-              // Fill the flex viewport on mobile
-              btn.style.height = (viewport.clientHeight - 32) + 'px';
-            } else {
-              btn.style.height = cardHeightFor(item.subs.length) + 'px';
-            }
-          }
-
-          const transform = `translateX(${primaryPos}px) translateZ(${zPos}px) rotateY(${rotAngle}deg) scale(${scale})`;
-          btn.style.transform = transform;
-
-          btn.style.zIndex = isFlipped ? 500 : Math.round(100 - absOffset * 10);
-          btn.style.opacity = Math.max(1 - absOffset * 0.32, 0);
-          btn.style.pointerEvents = absOffset > 3 ? 'none' : 'auto';
-          btn.style.filter = isCenter ? 'none' : `brightness(${Math.max(1 - absOffset * 0.2, 0.4)})`;
-
-          const subsHtml = item.subs.map(s => `<div class="sub-item" data-sub="${s}">${s}</div>`).join('');
-
-          btn.innerHTML = `
+        btn.innerHTML = `
       <div class="btn-3d-wrapper">
         <div class="btn-bezel-back"></div>
         <div class="btn-bezel-fill"></div>
@@ -812,392 +791,431 @@
         </div>
       </div>`;
 
-          btn.addEventListener('pointerdown', (e) => {
+        /* Press effect */
+        btn.addEventListener('pointerdown', () => btn.classList.add('pressed'));
+        const release = () => btn.classList.remove('pressed');
+        btn.addEventListener('pointerup', release);
+        btn.addEventListener('pointerleave', release);
+
+        /* Sub-item clicks */
+        btn.querySelectorAll('.sub-item').forEach(el => {
+          el.addEventListener('click', (e) => {
             e.stopPropagation();
-            btn.classList.add('pressed');
-          });
-          const release = () => btn.classList.remove('pressed');
-          btn.addEventListener('pointerup', release);
-          btn.addEventListener('pointerleave', release);
-
-          btn.querySelectorAll('.sub-item').forEach(el => {
-            el.addEventListener('click', (e) => {
-              e.stopPropagation();
-              // Fire the same navigation event as search results
-              const evt = new CustomEvent('deck:navigate', {
-                bubbles: true,
-                detail: { category: item.text, sub: el.dataset.sub, itemIndex: index }
-              });
-              document.dispatchEvent(evt);
-              showNavToast(item.text, el.dataset.sub);
+            const evt = new CustomEvent('deck:navigate', {
+              bubbles: true,
+              detail: { category: item.text, sub: el.dataset.sub, itemIndex: index }
             });
+            document.dispatchEvent(evt);
+            showNavToast(item.text, el.dataset.sub);
           });
+        });
 
-          // Touch passthrough — let sub-list scroll on mobile without triggering deck drag
-          const subListEl = btn.querySelector('.sub-list');
-          if (subListEl) {
-            subListEl.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
-            subListEl.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: true });
+        /* FIX: sub-list touch events stop propagation so deck drag doesn't fire */
+        const subListEl = btn.querySelector('.sub-list');
+        subListEl.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+        subListEl.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+
+        /* Close button */
+        btn.querySelector('.back-close').addEventListener('click', (e) => {
+          e.stopPropagation();
+          unflip();
+        });
+
+        /* Card click — flip or navigate */
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (dragMoved) return;
+          const offset = shortestOffset(index, position);
+          const absOffset = Math.abs(offset);
+          if (absOffset < 0.4) {
+            flippedIndex === index ? unflip() : openFlip(index);
+          } else {
+            unflip();
+            goTo(index);
           }
+        });
 
-          const backClose = btn.querySelector('.back-close');
-          if (backClose) {
-            backClose.addEventListener('click', (e) => {
-              e.stopPropagation();
-              unflip();
-            });
-          }
+        container.appendChild(btn);
+        cardNodes.push(btn);
+      });
+    }
 
-          btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (dragMoved) return;
-            if (absOffset < 0.4) {
-              if (flippedIndex === index) {
-                unflip();
-              } else {
-                openFlip(index);
-              }
-            } else {
-              unflip();
-              goTo(index);
-            }
+    function shortestOffset(index, pos) {
+      let raw = index - pos;
+      raw = ((raw % N) + N) % N;
+      if (raw > N / 2) raw -= N;
+      return raw;
+    }
+
+    function cardHeightFor(subsCount) {
+      const needed = HEADER_HEIGHT + subsCount * ROW_HEIGHT + VPAD;
+      return Math.max(BASE_HEIGHT_DESKTOP, Math.min(needed, MAX_CARD_HEIGHT));
+    }
+
+    function openFlip(index) {
+      flippedIndex = index;
+      if (!isMobile) {
+        const h = cardHeightFor(items[index].subs.length);
+        viewport.style.height = (h + VPAD) + 'px';
+      }
+      render();
+    }
+
+    function unflip() {
+      if (flippedIndex === null) return;
+      flippedIndex = null;
+      if (!isMobile) {
+        viewport.style.height = '320px';
+      }
+      render();
+    }
+
+    /* ─────────────────────────────────────────
+       FIX: render() mutates existing nodes only — no innerHTML rebuild
+       ───────────────────────────────────────── */
+    function render() {
+      const rounded = ((Math.round(position) % N) + N) % N;
+
+      /* Update dots */
+      [...dotsEl.children].forEach((d, i) => d.classList.toggle('active', i === rounded));
+
+      cardNodes.forEach((btn, index) => {
+        const offset = shortestOffset(index, position);
+        const absOffset = Math.abs(offset);
+        const isCenter = index === rounded && absOffset < 0.5;
+        const isFlipped = isCenter && flippedIndex === index;
+
+        /* Hide far-off cards cheaply */
+        if (absOffset > 3.5) {
+          btn.style.opacity = '0';
+          btn.style.pointerEvents = 'none';
+          btn.style.visibility = 'hidden';
+          return;
+        }
+        btn.style.visibility = '';
+
+        const primaryPos = offset * spacingValue;
+        const zPos = -absOffset * zDepthStep;
+        const rotAngle = -offset * curveAngle;
+        const scale = Math.max(1 - absOffset * 0.16, 0.4);
+
+        btn.style.transform = `translateX(${primaryPos}px) translateZ(${zPos}px) rotateY(${rotAngle}deg) scale(${scale})`;
+        btn.style.zIndex = isFlipped ? '500' : String(Math.round(100 - absOffset * 10));
+        btn.style.opacity = String(Math.max(1 - absOffset * 0.32, 0));
+        btn.style.pointerEvents = 'auto';
+        btn.style.filter = isCenter ? 'none' : `brightness(${Math.max(1 - absOffset * 0.2, 0.4)})`;
+
+        /* Height for flipped state */
+        if (isFlipped && !isMobile) {
+          btn.style.height = cardHeightFor(items[index].subs.length) + 'px';
+        } else if (!isMobile) {
+          btn.style.height = '';
+        }
+
+        /* Toggle classes */
+        btn.classList.toggle('flipped', isFlipped);
+        btn.classList.toggle('center', isCenter);
+      });
+    }
+
+    function goTo(index, onComplete) {
+      const offset = shortestOffset(index, position);
+      animateTo(position + offset, onComplete);
+    }
+
+    function animateTo(target, onComplete) {
+      cancelAnimationFrame(raf);
+      const startPos = position;
+      const startTime = performance.now();
+      const dist = target - startPos;
+      const duration = Math.min(Math.max(Math.abs(dist) * 140, 160), 520);
+
+      const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+
+      function step(now) {
+        const t = Math.min((now - startTime) / duration, 1);
+        position = startPos + dist * easeOutCubic(t);
+        render();
+        if (t < 1) {
+          raf = requestAnimationFrame(step);
+        } else {
+          position = target;
+          render();
+          if (onComplete) onComplete();
+        }
+      }
+      raf = requestAnimationFrame(step);
+    }
+
+    function settle() {
+      animateTo(Math.round(position));
+    }
+
+    /* ── Drag / pointer ── */
+    viewport.addEventListener('pointerdown', (e) => {
+      /* FIX: don't start deck drag if pointer is inside the sub-list */
+      if (flippedIndex !== null) {
+        const subList = container.querySelector('.tactile-btn.flipped .sub-list');
+        if (subList && subList.contains(e.target)) return;
+      }
+      dragging = true;
+      dragMoved = false;
+      dragStart = e.clientX;
+      dragStartPos = position;
+      cancelAnimationFrame(raf);
+      viewport.setPointerCapture(e.pointerId);
+    });
+
+    viewport.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const delta = e.clientX - dragStart;
+      if (Math.abs(delta) > 6) {
+        dragMoved = true;
+        if (flippedIndex !== null) unflip();
+      }
+      position = dragStartPos - delta / spacingValue;
+      render();
+    });
+
+    const endDrag = () => {
+      if (!dragging) return;
+      dragging = false;
+      settle();
+    };
+    viewport.addEventListener('pointerup', endDrag);
+    viewport.addEventListener('pointercancel', endDrag);
+
+    /* ── Wheel ── */
+    let wheelVelocity = 0;
+    let wheelRaf = null;
+    let wheelSettleTimer = null;
+
+    viewport.addEventListener('wheel', (e) => {
+      if (flippedIndex !== null) {
+        const subList = container.querySelector('.tactile-btn.flipped .sub-list');
+        if (subList && subList.contains(e.target)) {
+          e.stopPropagation();
+          return;  /* let native sub-list scroll work */
+        }
+        unflip();
+      }
+
+      e.preventDefault();
+      cancelAnimationFrame(raf);
+      cancelAnimationFrame(wheelRaf);
+      clearTimeout(wheelSettleTimer);
+
+      const normalized = Math.abs(e.deltaY) > 50
+        ? Math.sign(e.deltaY) * 0.006
+        : e.deltaY * 0.0018;
+
+      wheelVelocity += normalized;
+
+      function coasting() {
+        position += wheelVelocity;
+        wheelVelocity *= 0.82;
+        render();
+        if (Math.abs(wheelVelocity) > 0.0005) {
+          wheelRaf = requestAnimationFrame(coasting);
+        } else {
+          wheelVelocity = 0;
+          wheelSettleTimer = setTimeout(settle, 60);
+        }
+      }
+      wheelRaf = requestAnimationFrame(coasting);
+    }, { passive: false });
+
+    /* ── Keyboard ── */
+    viewport.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') unflip();
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { unflip(); animateTo(Math.round(position) + 1); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { unflip(); animateTo(Math.round(position) - 1); }
+    });
+
+    /* ── Nav buttons ── */
+    const resetWheel = () => {
+      cancelAnimationFrame(raf);
+      cancelAnimationFrame(wheelRaf);
+      clearTimeout(wheelSettleTimer);
+      wheelVelocity = 0;
+    };
+    document.getElementById('navLeft').addEventListener('click', () => {
+      resetWheel(); unflip(); animateTo(Math.round(position) - 1);
+    });
+    document.getElementById('navRight').addEventListener('click', () => {
+      resetWheel(); unflip(); animateTo(Math.round(position) + 1);
+    });
+
+    /* ── Responsive ── */
+    window.matchMedia('(max-width: 640px)').addEventListener('change', (e) => {
+      isMobile = e.matches;
+      if (!isMobile && flippedIndex !== null) {
+        const h = cardHeightFor(items[flippedIndex].subs.length);
+        viewport.style.height = (h + VPAD) + 'px';
+      } else if (isMobile) {
+        viewport.style.height = '';
+      }
+      render();
+    });
+
+    /* ── Search ── */
+    const searchWrapEl = document.getElementById('searchWrap');
+    const searchIndex = [];
+
+    let activeSuggestion = -1;
+    let currentMatches = [];
+
+    /* FIX: click-outside only closes suggestions; unflip only if clicking outside viewport */
+    document.addEventListener('click', (e) => {
+      if (!searchWrapEl.contains(e.target)) closeSuggestions();
+      /* Only unflip if click was genuinely outside the entire deck area */
+      if (flippedIndex !== null && !viewport.contains(e.target) && !searchWrapEl.contains(e.target)) {
+        unflip();
+      }
+    });
+
+    function closeSuggestions() {
+      searchSuggestions.classList.remove('open');
+      activeSuggestion = -1;
+    }
+
+    function highlightSub(itemIndex, sub) {
+      const el = container.querySelector(`.tactile-btn.flipped .sub-item[data-sub="${sub}"]`);
+      if (!el) return;
+      el.classList.add('sub-item-highlight');
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      setTimeout(() => el.classList.remove('sub-item-highlight'), 1400);
+    }
+
+    function openSubPage(match) {
+      if (match.url) { window.location.href = match.url; return; }
+      const evt = new CustomEvent('deck:navigate', {
+        bubbles: true,
+        detail: { category: match.category, sub: match.sub, itemIndex: match.itemIndex }
+      });
+      document.dispatchEvent(evt);
+      showNavToast(match.category, match.sub);
+    }
+
+    function showNavToast(category, sub) {
+      const toast = document.getElementById('deckToast');
+      toast.innerHTML = `<span style="opacity:0.5;margin-right:6px;">Opening</span>${sub}<span style="opacity:0.4;margin:0 5px;">·</span><span style="opacity:0.5">${category}</span>`;
+      toast.classList.add('visible');
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(() => toast.classList.remove('visible'), 2200);
+    }
+
+    function selectMatch(match, openCard = false) {
+      searchInput.value = '';
+      searchClear.classList.remove('visible');
+      closeSuggestions();
+      searchInput.blur();
+
+      if (openCard) {
+        unflip();
+        goTo(match.itemIndex, () => {
+          openFlip(match.itemIndex);
+          highlightSub(match.itemIndex, match.sub);
+        });
+      } else {
+        openSubPage(match);
+      }
+    }
+
+    function renderSuggestions(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) { closeSuggestions(); return; }
+
+      currentMatches = searchIndex.filter(m =>
+        m.sub.toLowerCase().includes(q) ||
+        m.category.toLowerCase().includes(q) ||
+        (m.keywords || []).some(k => k.toLowerCase().includes(q))
+      ).slice(0, 8).map(m => ({
+        ...m,
+        isCategoryMatch: m.category.toLowerCase().includes(q) && !m.sub.toLowerCase().includes(q),
+      }));
+
+      activeSuggestion = -1;
+      suggestionList.innerHTML = '';
+
+      if (currentMatches.length === 0) {
+        suggestionList.innerHTML = '<div class="suggestion-empty">No matches</div>';
+      } else {
+        currentMatches.forEach((match, i) => {
+          const row = document.createElement('div');
+          row.className = 'suggestion-row';
+          row.dataset.index = i;
+          const actionIcon = match.isCategoryMatch
+            ? `<svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="opacity:0.4;flex-shrink:0"><rect x="1" y="1" width="10" height="10" rx="3" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="6" x2="8" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="6" y1="4" x2="8" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="6" y1="8" x2="8" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`
+            : `<svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="opacity:0.4;flex-shrink:0"><line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="3.5" x2="10" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="8.5" x2="10" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`;
+          row.innerHTML = `
+        <div class="suggestion-dot" style="background:${THEMES[match.theme % THEMES.length].dot}"></div>
+        <div class="suggestion-text">
+          <div class="suggestion-sub">${match.sub}</div>
+          <div class="suggestion-cat">${match.category}</div>
+        </div>${actionIcon}`;
+          row.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            selectMatch(match, match.isCategoryMatch);
           });
-
-          container.appendChild(btn);
+          suggestionList.appendChild(row);
         });
       }
+      searchSuggestions.classList.add('open');
+    }
 
-      function goTo(index, onComplete) {
-        const offset = shortestOffset(index, position);
-        animateTo(position + offset, onComplete);
-      }
+    function updateActiveHighlight() {
+      [...suggestionList.children].forEach((row, i) => row.classList.toggle('active', i === activeSuggestion));
+    }
 
-      function animateTo(target, onComplete) {
-        cancelAnimationFrame(raf);
-        const startPos = position;
-        const startTime = performance.now();
-        const dist = target - startPos;
-        const duration = Math.min(Math.max(Math.abs(dist) * 140, 160), 520);
+    searchInput.addEventListener('input', () => {
+      searchClear.classList.toggle('visible', searchInput.value.length > 0);
+      renderSuggestions(searchInput.value);
+    });
+    searchInput.addEventListener('focus', () => {
+      searchBar.classList.add('focused');
+      if (searchInput.value.trim()) renderSuggestions(searchInput.value);
+    });
+    searchInput.addEventListener('blur', () => searchBar.classList.remove('focused'));
+    searchInput.addEventListener('keydown', (e) => {
+      if (!searchSuggestions.classList.contains('open') || !currentMatches.length) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); activeSuggestion = Math.min(activeSuggestion + 1, currentMatches.length - 1); updateActiveHighlight(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); activeSuggestion = Math.max(activeSuggestion - 1, 0); updateActiveHighlight(); }
+      else if (e.key === 'Enter') { e.preventDefault(); const pick = activeSuggestion >= 0 ? currentMatches[activeSuggestion] : currentMatches[0]; if (pick) selectMatch(pick, pick.isCategoryMatch); }
+      else if (e.key === 'Escape') { closeSuggestions(); searchInput.blur(); }
+    });
+    searchClear.addEventListener('click', () => {
+      searchInput.value = '';
+      searchClear.classList.remove('visible');
+      closeSuggestions();
+      searchInput.focus();
+    });
 
-        function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+    /* ── Init ── */
+    async function init() {
+      await loadData();
+      checkDb();
 
-        function step(now) {
-          const elapsed = now - startTime;
-          const t = Math.min(elapsed / duration, 1);
-          position = startPos + dist * easeOutCubic(t);
-          render();
-          if (t < 1) {
-            raf = requestAnimationFrame(step);
-          } else {
-            position = target;
-            render();
-            if (onComplete) onComplete();
-          }
-        }
-        raf = requestAnimationFrame(step);
-      }
-
-      function settle() {
-        animateTo(Math.round(position));
-      }
-
-      viewport.addEventListener('pointerdown', (e) => {
-        dragging = true;
-        dragMoved = false;
-        dragStart = e.clientX;
-        dragStartPos = position;
-        cancelAnimationFrame(raf);
-        viewport.setPointerCapture(e.pointerId);
+      items.forEach(() => {
+        const d = document.createElement('div');
+        d.className = 'dot';
+        dotsEl.appendChild(d);
       });
 
-      viewport.addEventListener('pointermove', (e) => {
-        if (!dragging) return;
-        const delta = e.clientX - dragStart;
-        if (Math.abs(delta) > 6) {
-          dragMoved = true;
-          if (flippedIndex !== null) unflip();
-        }
-        position = dragStartPos - delta / spacingValue;
-        render();
-      });
-
-      function endDrag() {
-        if (!dragging) return;
-        dragging = false;
-        settle();
-      }
-      viewport.addEventListener('pointerup', endDrag);
-      viewport.addEventListener('pointercancel', endDrag);
-
-      let wheelVelocity = 0;
-      let wheelRaf = null;
-      let wheelSettleTimer = null;
-
-      viewport.addEventListener('wheel', (e) => {
-        // If a card is flipped, check if the scroll target is inside the sub-list.
-        // Must check BEFORE preventDefault so native scroll can work.
-        if (flippedIndex !== null) {
-          const subList = container.querySelector('.tactile-btn.flipped .sub-list');
-          if (subList && subList.contains(e.target)) {
-            // Let the browser handle sub-list scrolling natively — don't preventDefault
-            e.stopPropagation();
-            return;
-          }
-          // Scrolling outside the sub-list while card is open: close card, then deck scrolls
-          unflip();
-        }
-
-        e.preventDefault();
-
-        cancelAnimationFrame(raf);
-        cancelAnimationFrame(wheelRaf);
-        clearTimeout(wheelSettleTimer);
-
-        // Normalise delta — trackpads send small floats, mouse wheels send 100/120
-        const normalized = Math.abs(e.deltaY) > 50
-          ? Math.sign(e.deltaY) * 0.006   // discrete mouse wheel
-          : e.deltaY * 0.0018;             // trackpad fine-grained
-
-        wheelVelocity += normalized;
-
-        // Decay loop — smooth momentum coast
-        function coasting() {
-          position += wheelVelocity;
-          wheelVelocity *= 0.82;
-          render();
-          if (Math.abs(wheelVelocity) > 0.0005) {
-            wheelRaf = requestAnimationFrame(coasting);
-          } else {
-            wheelVelocity = 0;
-            wheelSettleTimer = setTimeout(settle, 60);
-          }
-        }
-        wheelRaf = requestAnimationFrame(coasting);
-      }, { passive: false });
-
-      viewport.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') unflip();
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { unflip(); animateTo(Math.round(position) + 1); }
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { unflip(); animateTo(Math.round(position) - 1); }
-      });
-
-      document.getElementById('navLeft').addEventListener('click', () => {
-        cancelAnimationFrame(raf);
-        cancelAnimationFrame(wheelRaf);
-        clearTimeout(wheelSettleTimer);
-        wheelVelocity = 0;
-        unflip();
-        animateTo(Math.round(position) - 1);
-      });
-      document.getElementById('navRight').addEventListener('click', () => {
-        cancelAnimationFrame(raf);
-        cancelAnimationFrame(wheelRaf);
-        clearTimeout(wheelSettleTimer);
-        wheelVelocity = 0;
-        unflip();
-        animateTo(Math.round(position) + 1);
-      });
-
-      // ---------- Search ----------
-      const searchWrapEl = document.getElementById('searchWrap');
-      const searchIndex = [];
-
-      document.addEventListener('click', (e) => {
-        if (flippedIndex !== null && !viewport.contains(e.target)) unflip();
-        if (!searchWrapEl.contains(e.target)) closeSuggestions();
-      });
+      /* Build search index */
       items.forEach((item, itemIndex) => {
         item.subs.forEach(sub => {
           searchIndex.push({ itemIndex, category: item.text, sub, theme: item.theme, keywords: item.keywords || [] });
         });
       });
 
-      let activeSuggestion = -1;
-      let currentMatches = [];
-
-      function closeSuggestions() {
-        searchSuggestions.classList.remove('open');
-        activeSuggestion = -1;
-      }
-
-      function highlightSub(itemIndex, sub) {
-        const el = container.querySelector(`.tactile-btn.flipped .sub-item[data-sub="${sub}"]`);
-        if (!el) return;
-        el.classList.add('sub-item-highlight');
-        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        setTimeout(() => el.classList.remove('sub-item-highlight'), 1400);
-      }
-
-      function openSubPage(match) {
-        // Navigate to the sub-item's page. Use the match's url if available,
-        // otherwise fire the same click handler sub-items use.
-        if (match.url) {
-          window.location.href = match.url;
-          return;
-        }
-        // Fallback: dispatch a custom event so host page can handle navigation.
-        const evt = new CustomEvent('deck:navigate', {
-          bubbles: true,
-          detail: { category: match.category, sub: match.sub, itemIndex: match.itemIndex }
-        });
-        document.dispatchEvent(evt);
-        // For demo: log and show a brief toast
-        showNavToast(match.category, match.sub);
-      }
-
-      function showNavToast(category, sub) {
-        let toast = document.getElementById('deckToast');
-        if (!toast) {
-          toast = document.createElement('div');
-          toast.id = 'deckToast';
-          toast.style.cssText = `
-      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(12px);
-      background: rgba(30,32,44,0.96); border: 1px solid rgba(255,255,255,0.1);
-      color: #fff; font-size: 13px; font-weight: 500; font-family: inherit;
-      padding: 10px 18px; border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-      opacity: 0; transition: opacity 0.22s ease, transform 0.22s ease;
-      pointer-events: none; z-index: 9000; white-space: nowrap;
-    `;
-          document.body.appendChild(toast);
-        }
-        toast.innerHTML = `<span style="opacity:0.5;margin-right:6px;">Opening</span>${sub} <span style="opacity:0.4;margin:0 4px;">·</span> <span style="opacity:0.5">${category}</span>`;
-        // Animate in
-        requestAnimationFrame(() => {
-          toast.style.opacity = '1';
-          toast.style.transform = 'translateX(-50%) translateY(0)';
-        });
-        clearTimeout(toast._timer);
-        toast._timer = setTimeout(() => {
-          toast.style.opacity = '0';
-          toast.style.transform = 'translateX(-50%) translateY(8px)';
-        }, 2200);
-      }
-
-      function selectMatch(match, openCard = false) {
-        searchInput.value = '';
-        searchClear.classList.remove('visible');
-        closeSuggestions();
-        searchInput.blur();
-
-        if (openCard) {
-          // User explicitly wants the card (e.g. searched for a category name)
-          unflip();
-          goTo(match.itemIndex, () => {
-            openFlip(match.itemIndex);
-            highlightSub(match.itemIndex, match.sub);
-          });
-        } else {
-          // Default: navigate directly to the sub-item's page
-          openSubPage(match);
-        }
-      }
-
-      function renderSuggestions(query) {
-        const q = query.trim().toLowerCase();
-        if (!q) {
-          closeSuggestions();
-          return;
-        }
-
-        // Tag each match: isCategoryMatch = query matched the card's category name
-        currentMatches = searchIndex.filter(m =>
-          m.sub.toLowerCase().includes(q) ||
-          m.category.toLowerCase().includes(q) ||
-          (m.keywords || []).some(k => k.toLowerCase().includes(q))
-        ).slice(0, 8).map(m => ({
-          ...m,
-          isCategoryMatch: m.category.toLowerCase().includes(q) && !m.sub.toLowerCase().includes(q),
-        }));
-
-        activeSuggestion = -1;
-        suggestionList.innerHTML = '';
-
-        if (currentMatches.length === 0) {
-          suggestionList.innerHTML = '<div class="suggestion-empty">No matches</div>';
-        } else {
-          currentMatches.forEach((match, i) => {
-            const row = document.createElement('div');
-            row.className = 'suggestion-row';
-            row.dataset.index = i;
-
-            // Icon: card icon for category matches, arrow for direct page navigation
-            const actionIcon = match.isCategoryMatch
-              ? `<svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="opacity:0.4;flex-shrink:0"><rect x="1" y="1" width="10" height="10" rx="3" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="6" x2="8" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="6" y1="4" x2="8" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="6" y1="8" x2="8" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`
-              : `<svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="opacity:0.4;flex-shrink:0"><line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="3.5" x2="10" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="7" y1="8.5" x2="10" y2="6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`;
-
-            row.innerHTML = `
-        <div class="suggestion-dot" style="background:${THEMES[match.theme % THEMES.length].dot}"></div>
-        <div class="suggestion-text">
-          <div class="suggestion-sub">${match.sub}</div>
-          <div class="suggestion-cat">${match.category}</div>
-        </div>
-        ${actionIcon}`;
-
-            row.addEventListener('mousedown', (e) => {
-              e.preventDefault();
-              // Category-level matches open the card; sub-item matches go to the page
-              selectMatch(match, match.isCategoryMatch);
-            });
-            suggestionList.appendChild(row);
-          });
-        }
-        searchSuggestions.classList.add('open');
-      }
-
-      function updateActiveHighlight() {
-        [...suggestionList.children].forEach((row, i) => {
-          row.classList.toggle('active', i === activeSuggestion);
-        });
-      }
-
-      searchInput.addEventListener('input', () => {
-        searchClear.classList.toggle('visible', searchInput.value.length > 0);
-        renderSuggestions(searchInput.value);
-      });
-
-      searchInput.addEventListener('focus', () => {
-        searchBar.classList.add('focused');
-        if (searchInput.value.trim()) renderSuggestions(searchInput.value);
-      });
-
-      searchInput.addEventListener('blur', () => {
-        searchBar.classList.remove('focused');
-      });
-
-      searchInput.addEventListener('keydown', (e) => {
-        if (!searchSuggestions.classList.contains('open') || currentMatches.length === 0) return;
-        if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          activeSuggestion = Math.min(activeSuggestion + 1, currentMatches.length - 1);
-          updateActiveHighlight();
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          activeSuggestion = Math.max(activeSuggestion - 1, 0);
-          updateActiveHighlight();
-        } else if (e.key === 'Enter') {
-          e.preventDefault();
-          const pick = activeSuggestion >= 0 ? currentMatches[activeSuggestion] : currentMatches[0];
-          if (pick) selectMatch(pick, pick.isCategoryMatch);
-        } else if (e.key === 'Escape') {
-          closeSuggestions();
-          searchInput.blur();
-        }
-      });
-
-      searchClear.addEventListener('click', () => {
-        searchInput.value = '';
-        searchClear.classList.remove('visible');
-        closeSuggestions();
-        searchInput.focus();
-      });
-
+      /* FIX: Build card DOM once, then render() only updates transforms */
+      buildDeck();
       render();
-    } // end init()
+    }
 
     init();
   </script>
-
 </body>
 
 </html>
