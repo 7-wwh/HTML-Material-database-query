@@ -4,3 +4,6 @@ Plumber/*.db
 Plumber/*.db-wal
 Plumber/*.db-shm
 Plumber/images/
+database/html_output/
+database/firestore_export/
+firebase-key.json
