@@ -1,0 +1,500 @@
+{
+  "filename": "YH_HandBook_unrestricted.pdf",
+  "pageCount": 267,
+  "collections": [
+    {
+      "id": "front_matter",
+      "name": "Front Matter",
+      "page_start": 1,
+      "page_end": 13,
+      "page_count": 13,
+      "sections": [
+        {
+          "name": "Cover",
+          "page_start": 1,
+          "page_end": 1,
+          "page_count": 1
+        },
+        {
+          "name": "Table of Contents",
+          "page_start": 2,
+          "page_end": 3,
+          "page_count": 2
+        },
+        {
+          "name": "Company Profile",
+          "page_start": 4,
+          "page_end": 5,
+          "page_count": 2
+        },
+        {
+          "name": "Explanatory Notes",
+          "page_start": 6,
+          "page_end": 13,
+          "page_count": 8
+        }
+      ]
+    },
+    {
+      "id": "i_beams",
+      "name": "I-Beams",
+      "page_start": 14,
+      "page_end": 34,
+      "page_count": 21,
+      "sections": [
+        {
+          "name": "Product List & Design Formulae",
+          "page_start": 14,
+          "page_end": 20,
+          "page_count": 7
+        },
+        {
+          "name": "Safe Loads & Dimensions",
+          "page_start": 21,
+          "page_end": 33,
+          "page_count": 13
+        },
+        {
+          "name": "Axial Stresses",
+          "page_start": 34,
+          "page_end": 34,
+          "page_count": 1
+        }
+      ]
+    },
+    {
+      "id": "universal_beams_and_columns",
+      "name": "Universal Beams and Columns",
+      "page_start": 35,
+      "page_end": 48,
+      "page_count": 14,
+      "sections": [
+        {
+          "name": "Safe Loads",
+          "page_start": 35,
+          "page_end": 47,
+          "page_count": 13
+        },
+        {
+          "name": "Section Properties",
+          "page_start": 48,
+          "page_end": 48,
+          "page_count": 1
+        }
+      ]
+    },
+    {
+      "id": "light_beams_and_joists",
+      "name": "Light Beams and Joists",
+      "page_start": 49,
+      "page_end": 52,
+      "page_count": 4,
+      "sections": null
+    },
+    {
+      "id": "bearing_piles",
+      "name": "Bearing Piles",
+      "page_start": 53,
+      "page_end": 55,
+      "page_count": 3,
+      "sections": null
+    },
+    {
+      "id": "steel_piles",
+      "name": "Steel Piles",
+      "page_start": 56,
+      "page_end": 65,
+      "page_count": 10,
+      "sections": null
+    },
+    {
+      "id": "api_pipes",
+      "name": "API Pipes ERW & Seamless Pipes",
+      "page_start": 66,
+      "page_end": 85,
+      "page_count": 20,
+      "sections": null
+    },
+    {
+      "id": "cold_formed_hollow_sections",
+      "name": "Cold Formed Hollow Sections",
+      "page_start": 86,
+      "page_end": 100,
+      "page_count": 15,
+      "sections": [
+        {
+          "name": "Product List & Standard Specifications",
+          "page_start": 86,
+          "page_end": 89,
+          "page_count": 4
+        },
+        {
+          "name": "Square (Metric)",
+          "page_start": 90,
+          "page_end": 91,
+          "page_count": 2
+        },
+        {
+          "name": "Rectangular (Metric)",
+          "page_start": 92,
+          "page_end": 93,
+          "page_count": 2
+        },
+        {
+          "name": "Square (Imperial)",
+          "page_start": 94,
+          "page_end": 96,
+          "page_count": 3
+        },
+        {
+          "name": "Rectangular (Imperial)",
+          "page_start": 97,
+          "page_end": 100,
+          "page_count": 4
+        }
+      ]
+    },
+    {
+      "id": "hot_formed_hollow_sections",
+      "name": "Hot Formed Hollow Sections",
+      "page_start": 101,
+      "page_end": 111,
+      "page_count": 11,
+      "sections": null
+    },
+    {
+      "id": "pipes",
+      "name": "Pipes",
+      "page_start": 112,
+      "page_end": 125,
+      "page_count": 14,
+      "sections": [
+        {
+          "name": "Technical Specs & British Standard",
+          "page_start": 112,
+          "page_end": 116,
+          "page_count": 5
+        },
+        {
+          "name": "Carbon Steel Pipes",
+          "page_start": 117,
+          "page_end": 125,
+          "page_count": 9
+        }
+      ]
+    },
+    {
+      "id": "channels",
+      "name": "Channels",
+      "page_start": 126,
+      "page_end": 135,
+      "page_count": 10,
+      "sections": [
+        {
+          "name": "Safe Loads",
+          "page_start": 126,
+          "page_end": 131,
+          "page_count": 6
+        },
+        {
+          "name": "Lipped Channels",
+          "page_start": 132,
+          "page_end": 134,
+          "page_count": 3
+        },
+        {
+          "name": "Inch Series",
+          "page_start": 135,
+          "page_end": 135,
+          "page_count": 1
+        }
+      ]
+    },
+    {
+      "id": "z_purlins",
+      "name": "Z-Purlins",
+      "page_start": 136,
+      "page_end": 137,
+      "page_count": 2,
+      "sections": null
+    },
+    {
+      "id": "c_purlins",
+      "name": "C-Purlins",
+      "page_start": 138,
+      "page_end": 141,
+      "page_count": 4,
+      "sections": null
+    },
+    {
+      "id": "angles",
+      "name": "Angles",
+      "page_start": 142,
+      "page_end": 151,
+      "page_count": 10,
+      "sections": [
+        {
+          "name": "Equal Angles",
+          "page_start": 142,
+          "page_end": 149,
+          "page_count": 8
+        },
+        {
+          "name": "Unequal Angles",
+          "page_start": 150,
+          "page_end": 151,
+          "page_count": 2
+        }
+      ]
+    },
+    {
+      "id": "bars",
+      "name": "Bars",
+      "page_start": 152,
+      "page_end": 157,
+      "page_count": 6,
+      "sections": [
+        {
+          "name": "Flat Bars",
+          "page_start": 152,
+          "page_end": 154,
+          "page_count": 3
+        },
+        {
+          "name": "Bulb Flats",
+          "page_start": 155,
+          "page_end": 155,
+          "page_count": 1
+        },
+        {
+          "name": "Square, Deformed & Round Bars",
+          "page_start": 156,
+          "page_end": 157,
+          "page_count": 2
+        }
+      ]
+    },
+    {
+      "id": "plates",
+      "name": "Plates",
+      "page_start": 158,
+      "page_end": 176,
+      "page_count": 19,
+      "sections": [
+        {
+          "name": "Specifications",
+          "page_start": 158,
+          "page_end": 169,
+          "page_count": 12
+        },
+        {
+          "name": "Chequered Plates",
+          "page_start": 170,
+          "page_end": 170,
+          "page_count": 1
+        },
+        {
+          "name": "Cold Rolled Coils & Sheets",
+          "page_start": 171,
+          "page_end": 172,
+          "page_count": 2
+        },
+        {
+          "name": "Galvanised Steel Sheets",
+          "page_start": 173,
+          "page_end": 176,
+          "page_count": 4
+        }
+      ]
+    },
+    {
+      "id": "galvanised_serrated_gratings",
+      "name": "Galvanised Serrated Gratings",
+      "page_start": 177,
+      "page_end": 177,
+      "page_count": 1,
+      "sections": null
+    },
+    {
+      "id": "expanded_metal",
+      "name": "Expanded Metal",
+      "page_start": 178,
+      "page_end": 179,
+      "page_count": 2,
+      "sections": null
+    },
+    {
+      "id": "wrought_steel_fittings",
+      "name": "Wrought Steel Butt Welding Fittings",
+      "page_start": 180,
+      "page_end": 187,
+      "page_count": 8,
+      "sections": null
+    },
+    {
+      "id": "flanges",
+      "name": "Flanges",
+      "page_start": 188,
+      "page_end": 205,
+      "page_count": 18,
+      "sections": [
+        {
+          "name": "JIS Flanges",
+          "page_start": 188,
+          "page_end": 192,
+          "page_count": 5
+        },
+        {
+          "name": "ANSI Flanges",
+          "page_start": 193,
+          "page_end": 197,
+          "page_count": 5
+        },
+        {
+          "name": "Slip-On Flanges",
+          "page_start": 198,
+          "page_end": 204,
+          "page_count": 7
+        },
+        {
+          "name": "Welding Neck Flanges",
+          "page_start": 205,
+          "page_end": 205,
+          "page_count": 1
+        }
+      ]
+    },
+    {
+      "id": "stainless_steel_products",
+      "name": "Stainless Steel Products",
+      "page_start": 206,
+      "page_end": 247,
+      "page_count": 42,
+      "sections": [
+        {
+          "name": "General Information",
+          "page_start": 206,
+          "page_end": 209,
+          "page_count": 4
+        },
+        {
+          "name": "Coils, Sheets & Plates",
+          "page_start": 210,
+          "page_end": 214,
+          "page_count": 5
+        },
+        {
+          "name": "Angles & Flats",
+          "page_start": 215,
+          "page_end": 218,
+          "page_count": 4
+        },
+        {
+          "name": "Bars",
+          "page_start": 219,
+          "page_end": 223,
+          "page_count": 5
+        },
+        {
+          "name": "Welded Channels",
+          "page_start": 224,
+          "page_end": 224,
+          "page_count": 1
+        },
+        {
+          "name": "Welded Tubings",
+          "page_start": 225,
+          "page_end": 229,
+          "page_count": 5
+        },
+        {
+          "name": "Pipes",
+          "page_start": 230,
+          "page_end": 233,
+          "page_count": 4
+        },
+        {
+          "name": "Fittings",
+          "page_start": 234,
+          "page_end": 247,
+          "page_count": 14
+        }
+      ]
+    },
+    {
+      "id": "machinery_steel_products",
+      "name": "Machinery Steel Products",
+      "page_start": 248,
+      "page_end": 253,
+      "page_count": 6,
+      "sections": [
+        {
+          "name": "Harden & Tempered Steel",
+          "page_start": 248,
+          "page_end": 250,
+          "page_count": 3
+        },
+        {
+          "name": "Cold Finished Steel Bar",
+          "page_start": 251,
+          "page_end": 253,
+          "page_count": 3
+        }
+      ]
+    },
+    {
+      "id": "non_ferrous_metals",
+      "name": "Non-Ferrous Metals",
+      "page_start": 254,
+      "page_end": 263,
+      "page_count": 10,
+      "sections": [
+        {
+          "name": "Product List",
+          "page_start": 254,
+          "page_end": 254,
+          "page_count": 1
+        },
+        {
+          "name": "Copper",
+          "page_start": 255,
+          "page_end": 255,
+          "page_count": 1
+        },
+        {
+          "name": "Brass",
+          "page_start": 256,
+          "page_end": 259,
+          "page_count": 4
+        },
+        {
+          "name": "Bronze",
+          "page_start": 260,
+          "page_end": 263,
+          "page_count": 4
+        }
+      ]
+    },
+    {
+      "id": "appendix",
+      "name": "Appendix",
+      "page_start": 264,
+      "page_end": 267,
+      "page_count": 4,
+      "sections": [
+        {
+          "name": "Gauge Table",
+          "page_start": 264,
+          "page_end": 265,
+          "page_count": 2
+        },
+        {
+          "name": "Conversion Factors",
+          "page_start": 266,
+          "page_end": 267,
+          "page_count": 2
+        }
+      ]
+    }
+  ]
+}
