@@ -261,69 +261,50 @@
 
     /* ── Viewport ── */
     .deck-viewport {
-      perspective: 1400px;
       width: 100%;
       height: 320px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       position: relative;
       touch-action: none;
       outline: none;
+      cursor: grab;
       transition: height 0.42s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
+    .deck-viewport:active {
+      cursor: grabbing;
+    }
 
-    .deck-container {
-      position: relative;
+    .stage {
+      position: absolute;
+      left: 50%;
+      top: 50%;
       transform-style: preserve-3d;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      perspective: 1200px;
     }
 
     /* ── Cards ── */
-    .tactile-btn {
+    .card {
       position: absolute;
-      transform-style: preserve-3d;
       width: 190px;
       height: 260px;
+      transform-style: preserve-3d;
       cursor: pointer;
       user-select: none;
-      backface-visibility: hidden;
-      will-change: transform, opacity;
-      /* FIX: height transition for flip expand, separate from transform */
-      transition: height 0.42s cubic-bezier(0.2, 0.8, 0.2, 1),
-        opacity 0.18s ease;
+      transition: height 0.42s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
-    .btn-3d-wrapper {
+    .card-inner {
       position: relative;
-      transform-style: preserve-3d;
       width: 100%;
       height: 100%;
-      transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-
-    .tactile-btn.pressed .btn-3d-wrapper {
-      transform: translateY(4px) !important;
-    }
-
-    /* bezels removed — they caused dark-slab artifacts on side cards */
-
-    .flip-stage {
-      position: absolute;
-      inset: 0;
       transform-style: preserve-3d;
       transition: transform 0.48s cubic-bezier(0.4, 0.1, 0.2, 1);
     }
 
-    .tactile-btn.flipped .flip-stage {
+    .card.flipped .card-inner {
       transform: rotateY(180deg);
     }
 
-    .flip-face {
+    .face {
       position: absolute;
       inset: 0;
       border-radius: 22px;
@@ -334,22 +315,21 @@
       overflow: hidden;
     }
 
-    .flip-front {
+    .front {
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
       justify-content: flex-end;
       padding: 20px;
     }
 
-    .btn-top-row {
+    .back {
+      transform: rotateY(180deg);
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      width: 100%;
+      flex-direction: column;
+      padding: 18px;
     }
 
-    .btn-icon-badge {
+    .card-icon {
       width: 42px;
       height: 42px;
       border-radius: 12px;
@@ -359,11 +339,11 @@
       justify-content: center;
       font-size: 20px;
       color: #fff;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       flex-shrink: 0;
     }
 
-    .btn-chevron {
+    .card-flip-btn {
       width: 26px;
       height: 26px;
       border-radius: 50%;
@@ -373,31 +353,24 @@
       align-items: center;
       justify-content: center;
       font-size: 12px;
-      margin-bottom: 14px;
+      position: absolute;
+      top: 16px;
+      right: 16px;
       flex-shrink: 0;
     }
 
-    .btn-label {
+    .card-label {
       font-size: 16px;
       font-weight: 600;
       letter-spacing: 0.01em;
       color: #fff;
     }
 
-    .btn-meta {
+    .card-meta {
       font-size: 11px;
       font-weight: 500;
       color: rgba(255, 255, 255, 0.45);
       margin-top: 3px;
-    }
-
-    .flip-back {
-      transform: rotateY(180deg);
-      display: flex;
-      flex-direction: column;
-      padding: 18px;
-      height: 100%;
-      box-sizing: border-box;
     }
 
     .back-header {
@@ -427,7 +400,6 @@
       font-size: 11px;
       flex-shrink: 0;
       cursor: pointer;
-      /* FIX: ensure close button is always interactive */
       pointer-events: auto;
       position: relative;
       z-index: 10;
@@ -632,13 +604,12 @@
         transition: none;
       }
 
-      .tactile-btn {
+      .card {
         width: 200px;
         height: 240px;
       }
 
-      /* FIX: flipped card on mobile fills the flex area with CSS, not JS */
-      .tactile-btn.flipped {
+      .card.flipped {
         height: calc(100% - 32px);
       }
 
@@ -679,8 +650,8 @@
       </div>
     </div>
 
-    <div class="deck-viewport" id="deckInteractiveArea" tabindex="0" role="region" aria-label="Product categories">
-      <div class="deck-container" id="tactileDeck"></div>
+    <div class="deck-viewport" id="viewport" tabindex="0" role="region" aria-label="Product categories">
+      <div class="stage" id="stage"></div>
     </div>
 
     <div class="nav-row">
@@ -769,9 +740,11 @@
     }
 
     /* ── Layout constants ── */
-    const curveAngle = 24;
-    const zDepthStep = 110;
-    const spacingValue = 150;
+    const CARD_W = 190;
+    const CARD_H = 260;
+    const SPACING = 200;
+    const CURVE_ANGLE = 22;
+    const Z_STEP = 90;
     const BASE_HEIGHT_DESKTOP = 260;
     const MAX_CARD_HEIGHT = 480;
     const ROW_HEIGHT = 40;
@@ -781,17 +754,16 @@
     let position = 0;
     let dragging = false;
     let dragMoved = false;
-    let dragStart = 0;
-    let dragStartPos = 0;
+    let dragX0 = 0;
+    let dragP0 = 0;
     let raf = null;
     let isMobile = window.matchMedia('(max-width: 640px)').matches;
     let flippedIndex = null;
 
-    /* ── Persistent card node references ── */
-    let cardNodes = [];  // FIX: one node per item, created once
+    let cardEls = [];
 
-    const container = document.getElementById('tactileDeck');
-    const viewport = document.getElementById('deckInteractiveArea');
+    const stage = document.getElementById('stage');
+    const viewport = document.getElementById('viewport');
     const dotsEl = document.getElementById('dots');
     const searchInput = document.getElementById('searchInput');
     const searchBar = document.getElementById('searchBar');
@@ -803,15 +775,15 @@
        FIX: Build DOM once, render() only mutates transforms
        ───────────────────────────────────────── */
     function buildDeck() {
-      container.innerHTML = '';
-      cardNodes = [];
+      stage.innerHTML = '';
+      cardEls = [];
 
       items.forEach((item, index) => {
         const theme = THEMES[item.theme % THEMES.length];
 
-        const btn = document.createElement('div');
-        btn.className = 'tactile-btn';
-        btn.style.setProperty('--card-gradient', theme.gradient);
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.style.setProperty('--card-gradient', theme.gradient);
 
         const subsHtml = item.subs.map(s =>
           `<div class="sub-item" role="listitem" data-sub="${s.replace(/"/g, '&quot;')}">${s}</div>`
@@ -819,42 +791,32 @@
 
         const metaLine = item.isError ? ''
           : item.subCount === 1
-            ? '<div class="btn-meta">1 section</div>'
-            : `<div class="btn-meta">${item.subCount} sections &middot; p${item.pageStart}&ndash;${item.pageEnd}</div>`;
+            ? '<div class="card-meta">1 section</div>'
+            : `<div class="card-meta">${item.subCount} sections &middot; p${item.pageStart}&ndash;${item.pageEnd}</div>`;
 
         const retryHtml = item.isError
           ? '<div style="padding:8px 2px"><button class="retry-btn" data-retry>&#8635; Retry</button></div>'
           : '';
 
-        btn.innerHTML = `
-      <div class="btn-3d-wrapper">
-        <div class="flip-stage">
-          <div class="flip-face flip-front">
-            <div class="btn-top-row">
-              <div class="btn-icon-badge">${item.icon}</div>
-              <div class="btn-chevron">&#8634;</div>
-            </div>
-            <div class="btn-label">${item.text}</div>
-            ${metaLine}
+        card.innerHTML = `
+      <div class="card-inner">
+        <div class="face front">
+          <div class="card-flip-btn">&#8634;</div>
+          <div class="card-icon">${item.icon}</div>
+          <div class="card-label">${item.text}</div>
+          ${metaLine}
+        </div>
+        <div class="face back">
+          <div class="back-header">
+            <div class="back-title">${item.text}</div>
+            <div class="back-close">&#10005;</div>
           </div>
-          <div class="flip-face flip-back">
-            <div class="back-header">
-              <div class="back-title">${item.text}</div>
-              <div class="back-close">&#10005;</div>
-            </div>
-            <div class="sub-list" role="list">${subsHtml}${retryHtml}</div>
-          </div>
+          <div class="sub-list" role="list">${subsHtml}${retryHtml}</div>
         </div>
       </div>`;
 
-        /* Press effect */
-        btn.addEventListener('pointerdown', () => btn.classList.add('pressed'));
-        const release = () => btn.classList.remove('pressed');
-        btn.addEventListener('pointerup', release);
-        btn.addEventListener('pointerleave', release);
-
         /* Sub-item clicks */
-        btn.querySelectorAll('.sub-item').forEach(el => {
+        card.querySelectorAll('.sub-item').forEach(el => {
           el.addEventListener('click', (e) => {
             e.stopPropagation();
             const evt = new CustomEvent('deck:navigate', {
@@ -866,19 +828,18 @@
           });
         });
 
-        /* FIX: sub-list touch events stop propagation so deck drag doesn't fire */
-        const subListEl = btn.querySelector('.sub-list');
-        subListEl.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
-        subListEl.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+        /* Block sub-list pointerdown from bubbling to viewport drag */
+        const subListEl = card.querySelector('.sub-list');
+        subListEl.addEventListener('pointerdown', e => e.stopPropagation(), true);
 
         /* Close button */
-        btn.querySelector('.back-close').addEventListener('click', (e) => {
+        card.querySelector('.back-close').addEventListener('click', (e) => {
           e.stopPropagation();
           unflip();
         });
 
         /* Retry button */
-        const retryBtn = btn.querySelector('[data-retry]');
+        const retryBtn = card.querySelector('[data-retry]');
         if (retryBtn) {
           retryBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -887,12 +848,11 @@
         }
 
         /* Card click — flip or navigate */
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
+        card.addEventListener('click', (e) => {
           if (dragMoved) return;
           const offset = shortestOffset(index, position);
           const absOffset = Math.abs(offset);
-          if (absOffset < 0.4) {
+          if (absOffset < 0.45) {
             flippedIndex === index ? unflip() : openFlip(index);
           } else {
             unflip();
@@ -900,8 +860,8 @@
           }
         });
 
-        container.appendChild(btn);
-        cardNodes.push(btn);
+        stage.appendChild(card);
+        cardEls.push(card);
       });
     }
 
@@ -935,51 +895,42 @@
       render();
     }
 
-    /* ─────────────────────────────────────────
-       FIX: render() mutates existing nodes only — no innerHTML rebuild
-       ───────────────────────────────────────── */
     function render() {
-      const rounded = ((Math.round(position) % N) + N) % N;
+      const center = ((Math.round(position) % N) + N) % N;
 
-      /* Update dots */
-      [...dotsEl.children].forEach((d, i) => d.classList.toggle('active', i === rounded));
+      [...dotsEl.children].forEach((d, i) => d.classList.toggle('active', i === center));
 
-      cardNodes.forEach((btn, index) => {
-        const offset = shortestOffset(index, position);
-        const absOffset = Math.abs(offset);
-        const isCenter = index === rounded && absOffset < 0.5;
-        const isFlipped = isCenter && flippedIndex === index;
+      cardEls.forEach((el, index) => {
+        const off = shortestOffset(index, position);
+        const abs = Math.abs(off);
+        const isFlipped = index === center && flippedIndex === index;
 
-        /* Hide far-off cards cheaply */
-        if (absOffset > 3.5) {
-          btn.style.opacity = '0';
-          btn.style.pointerEvents = 'none';
-          btn.style.visibility = 'hidden';
+        if (abs > 3.2) {
+          el.style.visibility = 'hidden';
+          el.style.pointerEvents = 'none';
           return;
         }
-        btn.style.visibility = '';
+        el.style.visibility = '';
 
-        const primaryPos = offset * spacingValue;
-        const zPos = -absOffset * zDepthStep;
-        const rotAngle = -offset * curveAngle;
-        const scale = Math.max(1 - absOffset * 0.16, 0.4);
+        const tx = off * SPACING;
+        const tz = -abs * Z_STEP;
+        const ry = -off * CURVE_ANGLE;
+        const sc = Math.max(1 - abs * 0.14, 0.35);
+        const op = Math.max(1 - abs * 0.3, 0);
 
-        btn.style.transform = `translateX(${primaryPos}px) translateZ(${zPos}px) rotateY(${rotAngle}deg) scale(${scale})`;
-        btn.style.zIndex = isFlipped ? '500' : String(Math.round(100 - absOffset * 10));
-        btn.style.opacity = String(Math.max(1 - absOffset * 0.32, 0));
-        btn.style.pointerEvents = 'auto';
-        btn.style.filter = isCenter ? 'none' : `brightness(${Math.max(1 - absOffset * 0.2, 0.4)})`;
+        el.style.transform = `translateX(${tx}px) translateZ(${tz}px) rotateY(${ry}deg) scale(${sc})`;
+        el.style.zIndex = isFlipped ? '500' : String(Math.max(1, 100 - Math.round(abs * 10)));
+        el.style.opacity = op;
+        el.style.filter = abs > 0.3 ? `brightness(${Math.max(0.45, 1 - abs * 0.18)})` : 'none';
+        el.style.pointerEvents = 'auto';
 
-        /* Height for flipped state */
         if (isFlipped && !isMobile) {
-          btn.style.height = cardHeightFor(items[index].subs.length) + 'px';
+          el.style.height = cardHeightFor(items[index].subs.length) + 'px';
         } else if (!isMobile) {
-          btn.style.height = '';
+          el.style.height = '';
         }
 
-        /* Toggle classes */
-        btn.classList.toggle('flipped', isFlipped);
-        btn.classList.toggle('center', isCenter);
+        el.classList.toggle('flipped', isFlipped);
       });
     }
 
@@ -993,7 +944,7 @@
       const startPos = position;
       const startTime = performance.now();
       const dist = target - startPos;
-      const duration = Math.min(Math.max(Math.abs(dist) * 140, 160), 520);
+      const duration = Math.min(Math.max(Math.abs(dist) * 130, 160), 480);
 
       const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
 
@@ -1018,32 +969,25 @@
 
     /* ── Drag / pointer ── */
     viewport.addEventListener('pointerdown', (e) => {
-      /* FIX: don't start deck drag if pointer is inside the sub-list */
-      if (flippedIndex !== null) {
-        const subList = container.querySelector('.tactile-btn.flipped .sub-list');
-        if (subList && subList.contains(e.target)) return;
-      }
+      if (e.target.closest('.sub-list')) return;
       dragging = true;
       dragMoved = false;
-      dragStart = e.clientX;
-      dragStartPos = position;
+      dragX0 = e.clientX;
+      dragP0 = position;
       cancelAnimationFrame(raf);
-    });
+      viewport.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    }, { passive: false });
 
     viewport.addEventListener('pointermove', (e) => {
       if (!dragging) return;
-      const delta = e.clientX - dragStart;
-      if (Math.abs(delta) > 6) {
-        if (!dragMoved) {
-          dragMoved = true;
-          viewport.setPointerCapture(e.pointerId);
-        }
+      const dx = e.clientX - dragX0;
+      if (Math.abs(dx) > 5) {
+        dragMoved = true;
         if (flippedIndex !== null) unflip();
       }
-      if (dragMoved) {
-        position = dragStartPos - delta / spacingValue;
-        render();
-      }
+      position = dragP0 - dx / SPACING;
+      render();
     });
 
     const endDrag = () => {
@@ -1055,64 +999,32 @@
     viewport.addEventListener('pointercancel', endDrag);
 
     /* ── Wheel ── */
-    let wheelVelocity = 0;
-    let wheelRaf = null;
-    let wheelSettleTimer = null;
-
     viewport.addEventListener('wheel', (e) => {
-      if (flippedIndex !== null) {
-        const subList = container.querySelector('.tactile-btn.flipped .sub-list');
-        if (subList && subList.contains(e.target)) {
-          e.stopPropagation();
-          return;  /* let native sub-list scroll work */
-        }
-        unflip();
-      }
-
+      if (e.target.closest('.sub-list')) return;
       e.preventDefault();
       cancelAnimationFrame(raf);
-      cancelAnimationFrame(wheelRaf);
-      clearTimeout(wheelSettleTimer);
-
-      const normalized = Math.abs(e.deltaY) > 50
-        ? Math.sign(e.deltaY) * 0.006
-        : e.deltaY * 0.0018;
-
-      wheelVelocity += normalized;
-
-      function coasting() {
-        position += wheelVelocity;
-        wheelVelocity *= 0.82;
-        render();
-        if (Math.abs(wheelVelocity) > 0.0005) {
-          wheelRaf = requestAnimationFrame(coasting);
-        } else {
-          wheelVelocity = 0;
-          wheelSettleTimer = setTimeout(settle, 60);
-        }
-      }
-      wheelRaf = requestAnimationFrame(coasting);
+      if (flippedIndex !== null) unflip();
+      const delta = Math.abs(e.deltaY) > 60 ? Math.sign(e.deltaY) * 0.5 : e.deltaY * 0.007;
+      position += delta;
+      render();
+      clearTimeout(viewport._wt);
+      viewport._wt = setTimeout(settle, 120);
     }, { passive: false });
 
     /* ── Keyboard ── */
-    viewport.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', (e) => {
+      if (e.target === searchInput) return;
       if (e.key === 'Escape') unflip();
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { unflip(); animateTo(Math.round(position) + 1); }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { unflip(); animateTo(Math.round(position) - 1); }
     });
 
     /* ── Nav buttons ── */
-    const resetWheel = () => {
-      cancelAnimationFrame(raf);
-      cancelAnimationFrame(wheelRaf);
-      clearTimeout(wheelSettleTimer);
-      wheelVelocity = 0;
-    };
     document.getElementById('navLeft').addEventListener('click', () => {
-      resetWheel(); unflip(); animateTo(Math.round(position) - 1);
+      cancelAnimationFrame(raf); unflip(); animateTo(Math.round(position) - 1);
     });
     document.getElementById('navRight').addEventListener('click', () => {
-      resetWheel(); unflip(); animateTo(Math.round(position) + 1);
+      cancelAnimationFrame(raf); unflip(); animateTo(Math.round(position) + 1);
     });
 
     /* ── Responsive ── */
@@ -1134,10 +1046,8 @@
     let activeSuggestion = -1;
     let currentMatches = [];
 
-    /* FIX: click-outside only closes suggestions; unflip only if clicking outside viewport */
     document.addEventListener('click', (e) => {
       if (!searchWrapEl.contains(e.target)) closeSuggestions();
-      /* Only unflip if click was genuinely outside the entire deck area */
       if (flippedIndex !== null && !viewport.contains(e.target) && !searchWrapEl.contains(e.target)) {
         unflip();
       }
@@ -1149,7 +1059,7 @@
     }
 
     function highlightSub(itemIndex, sub) {
-      const el = container.querySelector(`.tactile-btn.flipped .sub-item[data-sub="${sub}"]`);
+      const el = stage.querySelector(`.card.flipped .sub-item[data-sub="${sub}"]`);
       if (!el) return;
       el.classList.add('sub-item-highlight');
       el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
