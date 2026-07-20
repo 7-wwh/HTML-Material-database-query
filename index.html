@@ -4,7 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tactile 3D Deck</title>
+  <title>Yick Hoe - Steel Handbook</title>
+  <meta name="description" content="Browse Yick Hoe's structural steel product catalog — beams, pipes, channels, angles, plates, fittings, and more.">
   <style>
     html,
     body {
@@ -386,6 +387,13 @@
       color: #fff;
     }
 
+    .btn-meta {
+      font-size: 11px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.45);
+      margin-top: 3px;
+    }
+
     .flip-back {
       transform: rotateY(180deg);
       display: flex;
@@ -544,6 +552,58 @@
       transform: translateX(-50%) translateY(0);
     }
 
+    /* ── Loading overlay ── */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0b0d12;
+      z-index: 9999;
+      transition: opacity 0.35s ease;
+    }
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loading-spinner {
+      width: 30px;
+      height: 30px;
+      border: 3px solid rgba(255,255,255,0.07);
+      border-top-color: rgba(255,255,255,0.5);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Retry button ── */
+    .retry-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding: 8px 16px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.8);
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .retry-btn:hover {
+      background: rgba(255,255,255,0.14);
+    }
+
+    /* ── Focus visible ── */
+    :focus-visible {
+      outline: 2px solid rgba(255,255,255,0.5);
+      outline-offset: 2px;
+    }
+
     /* ── Mobile ── */
     @media (max-width: 640px) {
 
@@ -597,7 +657,9 @@
 
 <body>
 
-  <div class="deck-wrap">
+  <div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div></div>
+
+  <div class="deck-wrap" id="deckWrap" style="display:none">
     <div class="search-wrap" id="searchWrap">
       <div class="search-bar" id="searchBar">
         <span class="search-icon">
@@ -621,14 +683,14 @@
       </div>
     </div>
 
-    <div class="deck-viewport" id="deckInteractiveArea" tabindex="0">
+    <div class="deck-viewport" id="deckInteractiveArea" tabindex="0" role="region" aria-label="Product categories">
       <div class="deck-container" id="tactileDeck"></div>
     </div>
 
     <div class="nav-row">
-      <button class="nav-arrow" id="navLeft" aria-label="Previous">&#8249;</button>
-      <div class="dots" id="dots"></div>
-      <button class="nav-arrow" id="navRight" aria-label="Next">&#8250;</button>
+      <button class="nav-arrow" id="navLeft" aria-label="Previous category">&#8249;</button>
+      <div class="dots" id="dots" role="list" aria-label="Category positions"></div>
+      <button class="nav-arrow" id="navRight" aria-label="Next category">&#8250;</button>
     </div>
   </div>
 
@@ -663,7 +725,7 @@
       label.textContent = '—';
       const t0 = performance.now();
       try {
-        const res = await fetch('./database/handbook_steel.db', { method: 'HEAD', cache: 'no-store' });
+        const res = await fetch('./database/directory.json', { method: 'HEAD', cache: 'no-store' });
         const ms = Math.round(performance.now() - t0);
         if (!res.ok && res.status !== 405) throw new Error();
         dot.className = 'db-dot ok';
@@ -687,15 +749,24 @@
           icon: CATEGORY_ICONS[i % CATEGORY_ICONS.length],
           theme: i % THEMES.length,
           subs: cat.items.map(item => item.name),
+          subCount: cat.items.length,
+          pageStart: Math.min(...cat.items.map(item => item.pageStart)),
+          pageEnd: Math.max(...cat.items.map(item => item.pageEnd)),
           keywords: cat.items.flatMap(item => [item.name, ...(item.keywords || [])]),
+          _rawItems: cat.items,
         }));
       } catch {
         items = [{
-          text: "Load Error",
+          text: "Failed to load",
           icon: "&#9888;",
           theme: 3,
           subs: ["Could not load directory.json"],
           keywords: [],
+          subCount: 0,
+          pageStart: null,
+          pageEnd: null,
+          _rawItems: [],
+          isError: true,
         }];
       }
       N = items.length;
@@ -747,8 +818,17 @@
         btn.style.setProperty('--card-gradient', theme.gradient);
 
         const subsHtml = item.subs.map(s =>
-          `<div class="sub-item" data-sub="${s.replace(/"/g, '&quot;')}">${s}</div>`
+          `<div class="sub-item" role="listitem" data-sub="${s.replace(/"/g, '&quot;')}">${s}</div>`
         ).join('');
+
+        const metaLine = item.isError ? ''
+          : item.subCount === 1
+            ? '<div class="btn-meta">1 section</div>'
+            : `<div class="btn-meta">${item.subCount} sections &middot; p${item.pageStart}&ndash;${item.pageEnd}</div>`;
+
+        const retryHtml = item.isError
+          ? '<div style="padding:8px 2px"><button class="retry-btn" data-retry>&#8635; Retry</button></div>'
+          : '';
 
         btn.innerHTML = `
       <div class="btn-3d-wrapper">
@@ -756,16 +836,17 @@
           <div class="flip-face flip-front">
             <div class="btn-top-row">
               <div class="btn-icon-badge">${item.icon}</div>
-              <div class="btn-chevron">&#9662;</div>
+              <div class="btn-chevron">&#8634;</div>
             </div>
             <div class="btn-label">${item.text}</div>
+            ${metaLine}
           </div>
           <div class="flip-face flip-back">
             <div class="back-header">
               <div class="back-title">${item.text}</div>
               <div class="back-close">&#10005;</div>
             </div>
-            <div class="sub-list">${subsHtml}</div>
+            <div class="sub-list" role="list">${subsHtml}${retryHtml}</div>
           </div>
         </div>
       </div>`;
@@ -799,6 +880,15 @@
           e.stopPropagation();
           unflip();
         });
+
+        /* Retry button */
+        const retryBtn = btn.querySelector('[data-retry]');
+        if (retryBtn) {
+          retryBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            init();
+          });
+        }
 
         /* Card click — flip or navigate */
         btn.addEventListener('click', (e) => {
@@ -1067,18 +1157,23 @@
     }
 
     function openSubPage(match) {
-      if (match.url) { window.location.href = match.url; return; }
-      const evt = new CustomEvent('deck:navigate', {
-        bubbles: true,
-        detail: { category: match.category, sub: match.sub, itemIndex: match.itemIndex }
-      });
-      document.dispatchEvent(evt);
+      const params = new URLSearchParams();
+      params.set('category', match.category);
+      params.set('sub', match.sub);
+      const url = window.location.pathname + '?' + params.toString();
+      window.history.pushState({ category: match.category, sub: match.sub }, '', url);
       showNavToast(match.category, match.sub);
+      handleUrlParams();
     }
+
+    document.addEventListener('deck:navigate', (e) => {
+      const { category, sub } = e.detail;
+      openSubPage({ category, sub, itemIndex: e.detail.itemIndex });
+    });
 
     function showNavToast(category, sub) {
       const toast = document.getElementById('deckToast');
-      toast.innerHTML = `<span style="opacity:0.5;margin-right:6px;">Opening</span>${sub}<span style="opacity:0.4;margin:0 5px;">·</span><span style="opacity:0.5">${category}</span>`;
+      toast.innerHTML = `<span style="opacity:0.5;margin-right:6px;">&#128279;</span>${sub}<span style="opacity:0.4;margin:0 5px;">·</span><span style="opacity:0.5">${category}</span>`;
       toast.classList.add('visible');
       clearTimeout(toast._timer);
       toast._timer = setTimeout(() => toast.classList.remove('visible'), 2200);
@@ -1170,8 +1265,25 @@
       searchInput.focus();
     });
 
+    function handleUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get('category');
+      const sub = params.get('sub');
+      if (!cat || !sub || !items.length || items[0].isError) return;
+      const idx = items.findIndex(i => i.text === cat);
+      if (idx === -1) return;
+      unflip();
+      goTo(idx, () => {
+        openFlip(idx);
+        setTimeout(() => highlightSub(idx, sub), 420);
+      });
+    }
+
     /* ── Init ── */
     async function init() {
+      const loading = document.getElementById('loadingOverlay');
+      const deckWrap = document.getElementById('deckWrap');
+      deckWrap.style.display = '';
       await loadData();
       checkDb();
 
@@ -1191,6 +1303,13 @@
       /* FIX: Build card DOM once, then render() only updates transforms */
       buildDeck();
       render();
+      loading.classList.add('hidden');
+      handleUrlParams();
+      window.addEventListener('popstate', () => {
+        const p = new URLSearchParams(window.location.search);
+        if (p.has('category') && p.has('sub')) handleUrlParams();
+        else unflip();
+      });
     }
 
     init();
