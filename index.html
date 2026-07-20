@@ -305,31 +305,14 @@
       transform-style: preserve-3d;
       width: 100%;
       height: 100%;
-      /* FIX: transition only transform, not height (height is on parent) */
       transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
     .tactile-btn.pressed .btn-3d-wrapper {
-      transform: translate3d(0, 4px, -8px) !important;
+      transform: translateY(4px) !important;
     }
 
-    /* FIX: pointer-events none so bezels never intercept clicks */
-    .btn-bezel-back,
-    .btn-bezel-fill {
-      position: absolute;
-      inset: 0;
-      border-radius: 22px;
-      background: var(--card-shade);
-      pointer-events: none;
-    }
-
-    .btn-bezel-back {
-      transform: translateZ(-14px);
-    }
-
-    .btn-bezel-fill {
-      transform: translateZ(-7px);
-    }
+    /* bezels removed — they caused dark-slab artifacts on side cards */
 
     .flip-stage {
       position: absolute;
@@ -349,7 +332,6 @@
       backface-visibility: hidden;
       box-sizing: border-box;
       background: var(--card-gradient);
-      /* FIX: removed box-shadow that caused "border" appearance on side bezels */
       box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.6);
       overflow: hidden;
     }
@@ -697,7 +679,7 @@
 
     async function loadData() {
       try {
-        const res = await fetch('./database/databases.json');
+        const res = await fetch('./database/directory.json');
         if (!res.ok) throw new Error();
         const data = await res.json();
         items = data.catalog.map((cat, i) => ({
@@ -712,7 +694,7 @@
           text: "Load Error",
           icon: "&#9888;",
           theme: 3,
-          subs: ["Could not load databases.json"],
+          subs: ["Could not load directory.json"],
           keywords: [],
         }];
       }
@@ -763,7 +745,6 @@
         const btn = document.createElement('div');
         btn.className = 'tactile-btn';
         btn.style.setProperty('--card-gradient', theme.gradient);
-        btn.style.setProperty('--card-shade', theme.shade);
 
         const subsHtml = item.subs.map(s =>
           `<div class="sub-item" data-sub="${s.replace(/"/g, '&quot;')}">${s}</div>`
@@ -771,8 +752,6 @@
 
         btn.innerHTML = `
       <div class="btn-3d-wrapper">
-        <div class="btn-bezel-back"></div>
-        <div class="btn-bezel-fill"></div>
         <div class="flip-stage">
           <div class="flip-face flip-front">
             <div class="btn-top-row">

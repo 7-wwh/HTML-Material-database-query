@@ -1,0 +1,1015 @@
+{
+  "documentMetadata": {
+    "fileName": "YH_HandBook.pdf",
+    "title": "Yick Hoe Structural Steel Handbook"
+  },
+  "catalog": [
+    {
+      "category": "Mild Steel Products",
+      "items": [
+        {
+          "name": "I-Beams",
+          "pageStart": 14,
+          "pageEnd": 34,
+          "collection": "ms_beams_i",
+          "keywords": [
+            "i-beams",
+            "design formulae",
+            "geometrical properties",
+            "shear stress",
+            "deflection",
+            "working stresses",
+            "safe loads"
+          ],
+          "subItems": [
+            {
+              "name": "Design Formulae for Beams",
+              "pageStart": 15,
+              "pageEnd": 23
+            },
+            {
+              "name": "Formulas for Geometrical Properties of Sections",
+              "pageStart": 24,
+              "pageEnd": 24
+            },
+            {
+              "name": "Geometrical Properties of Sections",
+              "pageStart": 25,
+              "pageEnd": 25
+            },
+            {
+              "name": "Distribution Diagram of Shear Stress in Beam Sections",
+              "pageStart": 26,
+              "pageEnd": 26
+            },
+            {
+              "name": "Stress and Deflection of Beams",
+              "pageStart": 27,
+              "pageEnd": 29
+            },
+            {
+              "name": "Working Stresses / Combined Stresses",
+              "pageStart": 30,
+              "pageEnd": 30
+            },
+            {
+              "name": "Deflection Coefficients / Safe Loads",
+              "pageStart": 31,
+              "pageEnd": 31
+            },
+            {
+              "name": "Beams Without Lateral Support",
+              "pageStart": 32,
+              "pageEnd": 32
+            },
+            {
+              "name": "Stress and Safe Loads (BS449 Table 3a)",
+              "pageStart": 33,
+              "pageEnd": 33
+            },
+            {
+              "name": "Axial Stresses / Design of Stanchions (BS449 Table 17a)",
+              "pageStart": 34,
+              "pageEnd": 34
+            }
+          ]
+        },
+        {
+          "name": "Universal Beams and Columns",
+          "pageStart": 35,
+          "pageEnd": 48,
+          "collection": "ms_beams_universal",
+          "keywords": [
+            "universal beams",
+            "universal columns",
+            "UB",
+            "UC",
+            "safe loads",
+            "grade 43 steel",
+            "section properties",
+            "metric",
+            "imperial"
+          ]
+        },
+        {
+          "name": "Light Beams and Joists",
+          "pageStart": 49,
+          "pageEnd": 52,
+          "collection": "ms_beams_light",
+          "keywords": [
+            "light beams",
+            "joists",
+            "dimensions",
+            "properties"
+          ]
+        },
+        {
+          "name": "Bearing Piles",
+          "pageStart": 53,
+          "pageEnd": 54,
+          "collection": "ms_bearing_piles",
+          "keywords": [
+            "bearing piles",
+            "dimensions",
+            "properties"
+          ]
+        },
+        {
+          "name": "Steel Piles",
+          "pageStart": 56,
+          "pageEnd": 64,
+          "collection": "ms_steel_piles",
+          "keywords": [
+            "steel piles",
+            "sheet piling",
+            "u-type",
+            "z-type",
+            "straight web-type",
+            "Larssen",
+            "Frodingham"
+          ],
+          "subItems": [
+            {
+              "name": "Frodingham Steel Sheet Piling",
+              "pageStart": 58,
+              "pageEnd": 58
+            },
+            {
+              "name": "Larssen Steel Sheet Piling",
+              "pageStart": 59,
+              "pageEnd": 59
+            },
+            {
+              "name": "General Information & Driving Data",
+              "pageStart": 60,
+              "pageEnd": 61
+            },
+            {
+              "name": "U-Type (KSP)",
+              "pageStart": 62,
+              "pageEnd": 63
+            },
+            {
+              "name": "Z-Type",
+              "pageStart": 64,
+              "pageEnd": 64
+            }
+          ]
+        },
+        {
+          "name": "API Pipes ERW & Seamless Pipes",
+          "pageStart": 66,
+          "pageEnd": 84,
+          "collection": "ms_api_pipes",
+          "keywords": [
+            "API pipes",
+            "ERW pipes",
+            "seamless pipes",
+            "hydrostatic test pressure",
+            "mechanical specifications",
+            "chemical specifications",
+            "tolerances"
+          ],
+          "subItems": [
+            {
+              "name": "Mechanical & Chemical Specifications",
+              "pageStart": 67,
+              "pageEnd": 68
+            },
+            {
+              "name": "Comparative Tables of Steel Qualities",
+              "pageStart": 69,
+              "pageEnd": 70
+            },
+            {
+              "name": "Tolerances",
+              "pageStart": 71,
+              "pageEnd": 71
+            },
+            {
+              "name": "Size, Weight & Hydrostatic Test Pressure Tables",
+              "pageStart": 72,
+              "pageEnd": 84
+            }
+          ]
+        },
+        {
+          "name": "Cold Formed Hollow Sections",
+          "pageStart": 86,
+          "pageEnd": 100,
+          "collection": "ms_hollow_cold_formed",
+          "keywords": [
+            "cold formed",
+            "hollow sections",
+            "square hollow sections",
+            "rectangular hollow sections",
+            "metric units",
+            "imperial units"
+          ],
+          "subItems": [
+            {
+              "name": "Standards & Specifications",
+              "pageStart": 87,
+              "pageEnd": 90
+            },
+            {
+              "name": "Square (Metric)",
+              "pageStart": 91,
+              "pageEnd": 92
+            },
+            {
+              "name": "Rectangular (Metric)",
+              "pageStart": 93,
+              "pageEnd": 94
+            },
+            {
+              "name": "Square (Imperial)",
+              "pageStart": 95,
+              "pageEnd": 97
+            },
+            {
+              "name": "Rectangular (Imperial)",
+              "pageStart": 98,
+              "pageEnd": 100
+            }
+          ]
+        },
+        {
+          "name": "Hot Formed Hollow Sections",
+          "pageStart": 101,
+          "pageEnd": 111,
+          "collection": "ms_hollow_hot_formed",
+          "keywords": [
+            "hot formed",
+            "hollow sections",
+            "square hollow sections",
+            "rectangular hollow sections",
+            "circular hollow sections"
+          ],
+          "subItems": [
+            {
+              "name": "Specifications & Standards",
+              "pageStart": 101,
+              "pageEnd": 104
+            },
+            {
+              "name": "Square",
+              "pageStart": 105,
+              "pageEnd": 107
+            },
+            {
+              "name": "Rectangular",
+              "pageStart": 108,
+              "pageEnd": 109
+            },
+            {
+              "name": "Circular",
+              "pageStart": 110,
+              "pageEnd": 111
+            }
+          ]
+        },
+        {
+          "name": "Pipes",
+          "pageStart": 112,
+          "pageEnd": 125,
+          "collection": "ms_pipes",
+          "keywords": [
+            "pipes",
+            "welded steel pipes",
+            "carbon steel pipes",
+            "scaffolding pipes",
+            "BS 1387",
+            "JIS G3444",
+            "JIS G3452",
+            "JIS G3445"
+          ],
+          "subItems": [
+            {
+              "name": "Technical Specification Reference",
+              "pageStart": 113,
+              "pageEnd": 115
+            },
+            {
+              "name": "BS 1387 Welded Steel Pipes (Light, Medium, Heavy)",
+              "pageStart": 116,
+              "pageEnd": 118
+            },
+            {
+              "name": "BS 1139 Scaffolding Tubes",
+              "pageStart": 119,
+              "pageEnd": 119
+            },
+            {
+              "name": "JIS G3444 Structural Pipes (Light AA)",
+              "pageStart": 120,
+              "pageEnd": 121
+            },
+            {
+              "name": "JIS G3452 Ordinary Piping (SGP)",
+              "pageStart": 122,
+              "pageEnd": 122
+            },
+            {
+              "name": "JIS G3445 Machine Structural Pipes (STKM)",
+              "pageStart": 123,
+              "pageEnd": 124
+            },
+            {
+              "name": "JIS G3444 STK Series Structural Pipes",
+              "pageStart": 125,
+              "pageEnd": 125
+            }
+          ]
+        },
+        {
+          "name": "Channels",
+          "pageStart": 126,
+          "pageEnd": 135,
+          "collection": "ms_channels",
+          "keywords": [
+            "channels",
+            "plain channels",
+            "lipped channels",
+            "DIN 1026 channels",
+            "u-channels",
+            "c-channel"
+          ],
+          "subItems": [
+            {
+              "name": "Safe Loads for Grade 43 Steel",
+              "pageStart": 127,
+              "pageEnd": 127
+            },
+            {
+              "name": "Plain Channels",
+              "pageStart": 128,
+              "pageEnd": 128
+            },
+            {
+              "name": "Lipped Channels",
+              "pageStart": 129,
+              "pageEnd": 129
+            },
+            {
+              "name": "DIN 1026 Channels",
+              "pageStart": 130,
+              "pageEnd": 130
+            },
+            {
+              "name": "U-Channels",
+              "pageStart": 131,
+              "pageEnd": 134
+            },
+            {
+              "name": "Inch Series",
+              "pageStart": 135,
+              "pageEnd": 135
+            }
+          ]
+        },
+        {
+          "name": "Z-Purlins",
+          "pageStart": 136,
+          "pageEnd": 137,
+          "collection": "ms_z_purlins",
+          "keywords": [
+            "z-purlins",
+            "high-tensile galvanised purlins",
+            "roofing supports"
+          ]
+        },
+        {
+          "name": "C-Purlins",
+          "pageStart": 138,
+          "pageEnd": 141,
+          "collection": "ms_c_purlins",
+          "keywords": [
+            "c-purlins",
+            "high-tensile galvanised purlins",
+            "purlin selection tables"
+          ]
+        },
+        {
+          "name": "Angles",
+          "pageStart": 142,
+          "pageEnd": 151,
+          "collection": "ms_angles",
+          "keywords": [
+            "angles",
+            "equal angles",
+            "unequal angles",
+            "inverted angles"
+          ],
+          "subItems": [
+            {
+              "name": "Equal Angles",
+              "pageStart": 143,
+              "pageEnd": 144
+            },
+            {
+              "name": "Unequal Angles",
+              "pageStart": 145,
+              "pageEnd": 150
+            },
+            {
+              "name": "Inverted Angles",
+              "pageStart": 151,
+              "pageEnd": 151
+            }
+          ]
+        },
+        {
+          "name": "Bars",
+          "pageStart": 152,
+          "pageEnd": 157,
+          "collection": "ms_bars",
+          "keywords": [
+            "bars",
+            "flat bars",
+            "bulb flats",
+            "square bars",
+            "deformed bars",
+            "round bars"
+          ],
+          "subItems": [
+            {
+              "name": "Flat Bars",
+              "pageStart": 153,
+              "pageEnd": 154
+            },
+            {
+              "name": "Bulb Flats (Slope 30\u00b0)",
+              "pageStart": 155,
+              "pageEnd": 155
+            },
+            {
+              "name": "Square Bars",
+              "pageStart": 156,
+              "pageEnd": 156
+            },
+            {
+              "name": "Deformed & Round Bars",
+              "pageStart": 157,
+              "pageEnd": 157
+            }
+          ]
+        },
+        {
+          "name": "Plates",
+          "pageStart": 158,
+          "pageEnd": 176,
+          "collection": "ms_plates",
+          "keywords": [
+            "plates",
+            "chequered plates",
+            "floor plates",
+            "cold rolled coils",
+            "cold rolled sheets",
+            "electrolytic galvanised",
+            "hot dip galvanised"
+          ],
+          "subItems": [
+            {
+              "name": "Specifications & Weight Tables",
+              "pageStart": 159,
+              "pageEnd": 170
+            },
+            {
+              "name": "Chequered (Floor) Plates",
+              "pageStart": 171,
+              "pageEnd": 171
+            },
+            {
+              "name": "Cold Rolled Coils & Sheets",
+              "pageStart": 172,
+              "pageEnd": 173
+            },
+            {
+              "name": "Electrolytic Galvanised Coils & Sheets",
+              "pageStart": 174,
+              "pageEnd": 174
+            },
+            {
+              "name": "Hot Dip Galvanised Coils & Sheets",
+              "pageStart": 175,
+              "pageEnd": 176
+            }
+          ]
+        },
+        {
+          "name": "Galvanised Serrated Gratings",
+          "pageStart": 177,
+          "pageEnd": 177,
+          "collection": "ms_gratings",
+          "keywords": [
+            "gratings",
+            "galvanised serrated gratings",
+            "loading table"
+          ]
+        },
+        {
+          "name": "Expanded Metal",
+          "pageStart": 178,
+          "pageEnd": 179,
+          "collection": "ms_expanded_metal",
+          "keywords": [
+            "expanded metal",
+            "mesh",
+            "walkways",
+            "screens"
+          ]
+        },
+        {
+          "name": "Wrought Steel Butt Welding Fittings",
+          "pageStart": 180,
+          "pageEnd": 187,
+          "collection": "ms_fittings",
+          "keywords": [
+            "fittings",
+            "wrought steel",
+            "butt welding",
+            "elbows",
+            "tees",
+            "reducers",
+            "returns",
+            "stub ends",
+            "caps"
+          ],
+          "subItems": [
+            {
+              "name": "Standard Sizes & Dimensions",
+              "pageStart": 181,
+              "pageEnd": 181
+            },
+            {
+              "name": "90\u00b0 Long Radius Elbows",
+              "pageStart": 182,
+              "pageEnd": 182
+            },
+            {
+              "name": "180\u00b0 Returns",
+              "pageStart": 183,
+              "pageEnd": 183
+            },
+            {
+              "name": "Concentric / Eccentric Reducers",
+              "pageStart": 184,
+              "pageEnd": 185
+            },
+            {
+              "name": "Straight Tees",
+              "pageStart": 186,
+              "pageEnd": 186
+            },
+            {
+              "name": "Reducing Tees (ANSI B16.9)",
+              "pageStart": 187,
+              "pageEnd": 187
+            }
+          ]
+        },
+        {
+          "name": "Flanges",
+          "pageStart": 188,
+          "pageEnd": 205,
+          "collection": "ms_flanges",
+          "keywords": [
+            "flanges",
+            "JIS flanges",
+            "ANSI flanges",
+            "slip-on flanges",
+            "welding neck flanges",
+            "blind flanges"
+          ],
+          "subItems": [
+            {
+              "name": "JIS Flanges (JIS B2220) 5K / 10K",
+              "pageStart": 188,
+              "pageEnd": 188
+            },
+            {
+              "name": "ANSI Flanges 150LB",
+              "pageStart": 189,
+              "pageEnd": 191
+            },
+            {
+              "name": "ANSI Flanges Class 600 / 1500",
+              "pageStart": 192,
+              "pageEnd": 193
+            },
+            {
+              "name": "BS 4504 Slip-On Flanges PN6 / PN16 / PN40",
+              "pageStart": 194,
+              "pageEnd": 196
+            },
+            {
+              "name": "BS 4504 Slip-On Flanges PN100 / PN250",
+              "pageStart": 197,
+              "pageEnd": 198
+            },
+            {
+              "name": "DIN Welding Neck Flanges (2633 / 2635)",
+              "pageStart": 199,
+              "pageEnd": 200
+            },
+            {
+              "name": "BS10 Slip-On Flanges (Table A / R)",
+              "pageStart": 201,
+              "pageEnd": 205
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": "Stainless Steel Products",
+      "items": [
+        {
+          "name": "General Information",
+          "pageStart": 206,
+          "pageEnd": 209,
+          "collection": "ss_general",
+          "keywords": [
+            "stainless steel",
+            "general information",
+            "corrosion resistance data",
+            "martensitic",
+            "ferritic",
+            "austenitic"
+          ]
+        },
+        {
+          "name": "Coils, Sheets & Plates",
+          "pageStart": 210,
+          "pageEnd": 215,
+          "collection": "ss_sheets",
+          "keywords": [
+            "stainless steel coils",
+            "stainless steel sheets",
+            "stainless steel plates",
+            "chemical composition",
+            "mechanical properties",
+            "finishes",
+            "sizes",
+            "unit weights"
+          ]
+        },
+        {
+          "name": "Angles & Flats",
+          "pageStart": 216,
+          "pageEnd": 219,
+          "collection": "ss_angles_flats",
+          "keywords": [
+            "stainless steel angles",
+            "stainless steel flats"
+          ]
+        },
+        {
+          "name": "Bars",
+          "pageStart": 220,
+          "pageEnd": 224,
+          "collection": "ss_bars",
+          "keywords": [
+            "stainless steel bars",
+            "round bars",
+            "hexagon bars",
+            "square bars"
+          ],
+          "subItems": [
+            {
+              "name": "Round Bars (Chemical Composition)",
+              "pageStart": 220,
+              "pageEnd": 222
+            },
+            {
+              "name": "Round Bars (Sizes & Unit Weights)",
+              "pageStart": 223,
+              "pageEnd": 223
+            },
+            {
+              "name": "Hexagon & Square Bars",
+              "pageStart": 224,
+              "pageEnd": 224
+            }
+          ]
+        },
+        {
+          "name": "Welded Channels",
+          "pageStart": 225,
+          "pageEnd": 225,
+          "collection": "ss_channels",
+          "keywords": [
+            "stainless steel welded channels",
+            "AISI 304"
+          ]
+        },
+        {
+          "name": "Welded Tubings",
+          "pageStart": 226,
+          "pageEnd": 230,
+          "collection": "ss_tubings",
+          "keywords": [
+            "stainless steel welded tubings",
+            "round tubing",
+            "square tubing",
+            "rectangular tubing",
+            "instrumentation tube"
+          ],
+          "subItems": [
+            {
+              "name": "Mechanical Properties & General",
+              "pageStart": 226,
+              "pageEnd": 226
+            },
+            {
+              "name": "Round Tubing",
+              "pageStart": 227,
+              "pageEnd": 227
+            },
+            {
+              "name": "Square Tubing",
+              "pageStart": 228,
+              "pageEnd": 228
+            },
+            {
+              "name": "Rectangular Tubing",
+              "pageStart": 229,
+              "pageEnd": 229
+            },
+            {
+              "name": "Instrumentation Tube (SWG / BWG)",
+              "pageStart": 230,
+              "pageEnd": 230
+            }
+          ]
+        },
+        {
+          "name": "Pipes",
+          "pageStart": 231,
+          "pageEnd": 234,
+          "collection": "ss_pipes",
+          "keywords": [
+            "stainless steel pipes",
+            "seamless pipes",
+            "welded pipes",
+            "ASTM A312",
+            "chemical composition",
+            "heat treatment",
+            "dimensions",
+            "weights"
+          ]
+        },
+        {
+          "name": "Fittings",
+          "pageStart": 235,
+          "pageEnd": 246,
+          "collection": "ss_fittings",
+          "keywords": [
+            "stainless steel fittings",
+            "elbows",
+            "returns",
+            "reducers",
+            "tees",
+            "stub ends",
+            "caps"
+          ],
+          "subItems": [
+            {
+              "name": "45\u00b0 Long Radius Elbows",
+              "pageStart": 235,
+              "pageEnd": 235
+            },
+            {
+              "name": "90\u00b0 Long Radius Elbows",
+              "pageStart": 236,
+              "pageEnd": 236
+            },
+            {
+              "name": "90\u00b0 Short Radius Elbows",
+              "pageStart": 237,
+              "pageEnd": 237
+            },
+            {
+              "name": "180\u00b0 Long Radius Returns",
+              "pageStart": 238,
+              "pageEnd": 238
+            },
+            {
+              "name": "Straight Tees",
+              "pageStart": 239,
+              "pageEnd": 239
+            },
+            {
+              "name": "Reducing Outlet Tees",
+              "pageStart": 240,
+              "pageEnd": 241
+            },
+            {
+              "name": "Lap-Joint Stub Ends",
+              "pageStart": 242,
+              "pageEnd": 242
+            },
+            {
+              "name": "Eccentric / Concentric Reducers",
+              "pageStart": 243,
+              "pageEnd": 245
+            },
+            {
+              "name": "Caps",
+              "pageStart": 246,
+              "pageEnd": 246
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": "Alloy & Machinery Steel Products",
+      "items": [
+        {
+          "name": "Harden & Tempered Steel - Carbon Steel",
+          "pageStart": 248,
+          "pageEnd": 249,
+          "collection": "alloy_harden_tempered",
+          "keywords": [
+            "harden steel",
+            "tempered steel",
+            "carbon steel",
+            "machinery steel",
+            "KS D3752",
+            "JIS G4051"
+          ]
+        },
+        {
+          "name": "Pre-Harden & Tempered Alloy Steel",
+          "pageStart": 250,
+          "pageEnd": 251,
+          "collection": "alloy_pre_harden",
+          "keywords": [
+            "pre-harden steel",
+            "tempered alloy steel",
+            "machinery steel",
+            "SCR",
+            "SCM",
+            "SNC",
+            "SNCM"
+          ]
+        },
+        {
+          "name": "Cold Finished Steel Bar",
+          "pageStart": 252,
+          "pageEnd": 252,
+          "collection": "alloy_cold_finished",
+          "keywords": [
+            "cold finished steel bar",
+            "free cutting steel",
+            "SUM series"
+          ]
+        }
+      ]
+    },
+    {
+      "category": "Non-Ferrous Metals",
+      "items": [
+        {
+          "name": "Copper",
+          "pageStart": 254,
+          "pageEnd": 256,
+          "collection": "nf_copper",
+          "keywords": [
+            "copper",
+            "round bars",
+            "hexagon bars",
+            "square bars",
+            "flat bars"
+          ],
+          "subItems": [
+            {
+              "name": "Round, Hexagon & Square Bars",
+              "pageStart": 255,
+              "pageEnd": 255
+            },
+            {
+              "name": "Flat Bars",
+              "pageStart": 256,
+              "pageEnd": 256
+            }
+          ]
+        },
+        {
+          "name": "Brass",
+          "pageStart": 257,
+          "pageEnd": 259,
+          "collection": "nf_brass",
+          "keywords": [
+            "brass",
+            "round bars",
+            "hexagon bars",
+            "square bars",
+            "flat bars",
+            "brass sheets"
+          ],
+          "subItems": [
+            {
+              "name": "Round, Hexagon & Square Bars",
+              "pageStart": 257,
+              "pageEnd": 257
+            },
+            {
+              "name": "Flat Bars",
+              "pageStart": 258,
+              "pageEnd": 258
+            },
+            {
+              "name": "Sheets",
+              "pageStart": 259,
+              "pageEnd": 259
+            }
+          ]
+        },
+        {
+          "name": "Bronze",
+          "pageStart": 260,
+          "pageEnd": 262,
+          "collection": "nf_bronze",
+          "keywords": [
+            "bronze",
+            "continuous casting",
+            "solid bronze",
+            "cored bronze",
+            "stock sizes"
+          ],
+          "subItems": [
+            {
+              "name": "Principle of Continuous Casting",
+              "pageStart": 260,
+              "pageEnd": 260
+            },
+            {
+              "name": "Stock Sizes & Weights",
+              "pageStart": 261,
+              "pageEnd": 261
+            },
+            {
+              "name": "Continuously Cast & Centrifugally Cast",
+              "pageStart": 262,
+              "pageEnd": 262
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": "Appendix",
+      "items": [
+        {
+          "name": "Gauge Table",
+          "pageStart": 264,
+          "pageEnd": 265,
+          "collection": "appendix_gauge",
+          "keywords": [
+            "gauge table",
+            "SWG",
+            "BWG",
+            "BG",
+            "USG"
+          ],
+          "subItems": [
+            {
+              "name": "SWG, BWG, BG, BS & USG Gauges",
+              "pageStart": 265,
+              "pageEnd": 265
+            }
+          ]
+        },
+        {
+          "name": "Conversion Factors",
+          "pageStart": 266,
+          "pageEnd": 267,
+          "collection": "appendix_conversion",
+          "keywords": [
+            "conversion factors",
+            "linear measure",
+            "square measure",
+            "cube measure",
+            "weight",
+            "energy"
+          ],
+          "subItems": [
+            {
+              "name": "Linear Measure Conversions",
+              "pageStart": 266,
+              "pageEnd": 266
+            },
+            {
+              "name": "Weight per Unit Conversions",
+              "pageStart": 267,
+              "pageEnd": 267
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
