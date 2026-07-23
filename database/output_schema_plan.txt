@@ -1,0 +1,1738 @@
+OUTPUT SCHEMA PLAN — Handbook Material Database
+================================================
+This document describes the output fields for each of the 133 Firestore leaves.
+✅ = ACTIVE — schema implemented, NDJSON output being produced
+⏭️ = PLANNED — schema not yet implemented (proposed output shown)
+
+===============================================================================
+I-BEAMS (pages 14-55)
+===============================================================================
+
+⏭️ product_list_and_design_formulae  (p14, 15, 16, 17, 18, 19, 20)
+  Description: Product List and Design Formulae
+  No tabular data — not parseable.
+  (Product index and engineering formulae (descriptive))
+
+⏭️ i_beam_stress_strain_diagram  (p21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32)
+  Description: I-Beam Stress-Strain Diagram
+  No tabular data — not parseable.
+  (Beam theory and design text (descriptive))
+
+✅ slenderness_and_geometry_ratio_allowable_stress  (p33)
+  Description: Slenderness and Geometry Ratio - Allowable Stress (BS 449 Table 3a)
+  Output fields:
+    dt_10                        num    (N/mm2)
+    dt_15                        num    (N/mm2)
+    dt_20                        num    (N/mm2)
+    dt_25                        num    (N/mm2)
+    dt_30                        num    (N/mm2)
+    dt_35                        num    (N/mm2)
+    dt_40                        num    (N/mm2)
+    dt_50                        num    (N/mm2)
+
+✅ stanchios_and_struts_allowable_stress  (p34)
+  Description: Stanchions and Struts - Allowable Axial Stress (BS 449 Table 17a)
+  Output fields:
+    pc_0                         num    (N/mm2)
+    pc_1                         num    (N/mm2)
+    pc_2                         num    (N/mm2)
+    pc_3                         num    (N/mm2)
+    pc_4                         num    (N/mm2)
+    pc_5                         num    (N/mm2)
+    pc_6                         num    (N/mm2)
+    pc_7                         num    (N/mm2)
+    pc_8                         num    (N/mm2)
+    pc_9                         num    (N/mm2)
+
+✅ safe_loads_for_grade_43_steel  (p35, 36)
+  Description: Safe Loads for Grade 43 Steel
+  Output fields:
+    mass_per_m                   num    (kg)
+    span_2_00                    num    (kN)
+    span_2_50                    num    (kN)
+    span_3_00                    num    (kN)
+    span_3_50                    num    (kN)
+    span_4_00                    num    (kN)
+    span_4_50                    num    (kN)
+    span_5_00                    num    (kN)
+    span_5_50                    num    (kN)
+    span_6_00                    num    (kN)
+    span_7_00                    num    (kN)
+    span_8_00                    num    (kN)
+    span_9_00                    num    (kN)
+    span_10_00                   num    (kN)
+    critical_span                num    (m)
+    mass_per_m                   num    (kg)
+    span_4_00                    num    (kN)
+    span_5_00                    num    (kN)
+    span_6_00                    num    (kN)
+    span_7_00                    num    (kN)
+    span_8_00                    num    (kN)
+    span_9_00                    num    (kN)
+    span_10_00                   num    (kN)
+    span_11_00                   num    (kN)
+    span_12_00                   num    (kN)
+    span_13_00                   num    (kN)
+    span_14_00                   num    (kN)
+    span_15_00                   num    (kN)
+    span_16_00                   num    (kN)
+    critical_span                num    (m)
+
+✅ universal_beams_and_columns  (p37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48)
+  Description: Universal Beams and Columns
+  Output fields:
+    weight_lb_ft                 num    (lb/ft)
+    weight_kg_m                  num    (kg/m)
+    area_in2                     num    (in²)
+    area_cm2                     num    (cm²)
+    depth_in                     num    (in)
+    depth_mm                     num    (mm)
+    flange_width_in              num    (in)
+    flange_width_mm              num    (mm)
+    flange_thickness_in          num    (in)
+    flange_thickness_mm          num    (mm)
+    web_thickness_in             num    (in)
+    web_thickness_mm             num    (mm)
+    corner_radius_in             num    (in)
+    corner_radius_mm             num    (mm)
+    Ix_in4                       num    (in⁴)
+    Ix_cm4                       num    (cm⁴)
+    Iy_in4                       num    (in⁴)
+    Iy_cm4                       num    (cm⁴)
+    ix_in                        num    (in)
+    ix_cm                        num    (cm)
+    iy_in                        num    (in)
+    iy_cm                        num    (cm)
+    Zx_in3                       num    (in³)
+    Zx_cm3                       num    (cm³)
+    Zy_in3                       num    (in³)
+    Zy_cm3                       num    (cm³)
+    weight_kg_m                  num    (kg/m)
+    depth_mm                     num    (mm)
+    flange_width_mm              num    (mm)
+    web_thickness_mm             num    (mm)
+    flange_thickness_mm          num    (mm)
+    corner_radius_mm             num    (mm)
+    area_cm2                     num    (cm²)
+    Ix_cm4                       num    (cm⁴)
+    Iy_cm4                       num    (cm⁴)
+    ix_cm                        num    (cm)
+    iy_cm                        num    (cm)
+    Zx_cm3                       num    (cm³)
+    Zy_cm3                       num    (cm³)
+    weight_kg_m                  num    (kg/m)
+    depth_mm                     num    (mm)
+    flange_width_mm              num    (mm)
+    web_thickness_mm             num    (mm)
+    flange_thickness_mm          num    (mm)
+    corner_radius_mm             num    (mm)
+    area_cm2                     num    (cm²)
+    Ix_cm4                       num    (cm⁴)
+    Iy_cm4                       num    (cm⁴)
+    ix_cm                        num    (cm)
+    iy_cm                        num    (cm)
+    Zx_cm3                       num    (cm³)
+    Zy_cm3                       num    (cm³)
+
+✅ light_beam_and_joist  (p49, 50, 51, 52)
+  Description: Light Beam and Joist
+  Output fields:
+    weight_lb_ft                 num    (lb/ft)
+    weight_kg_m                  num    (kg/m)
+    depth_in                     num    (in)
+    depth_mm                     num    (mm)
+    flange_width_in              num    (in)
+    flange_width_mm              num    (mm)
+    web_thickness_in             num    (in)
+    web_thickness_mm             num    (mm)
+    flange_thickness_in          num    (in)
+    flange_thickness_mm          num    (mm)
+    corner_radius_in             num    (in)
+    corner_radius_mm             num    (mm)
+    area_in2                     num    (in²)
+    area_cm2                     num    (cm²)
+    Ix_in4                       num    (in⁴)
+    Ix_cm4                       num    (cm⁴)
+    Iy_in4                       num    (in⁴)
+    Iy_cm4                       num    (cm⁴)
+    ix_in                        num    (in)
+    ix_cm                        num    (cm)
+    iy_in                        num    (in)
+    iy_cm                        num    (cm)
+    Zx_in3                       num    (in³)
+    Zx_cm3                       num    (cm³)
+    Zy_in3                       num    (in³)
+    Zy_cm3                       num    (cm³)
+    weight_kg_m                  num    (kg/m)
+    weight_lb_ft                 num    (lb/ft)
+    web_thickness_mm             num    (mm)
+    web_thickness_in             num    (in)
+    flange_thickness_mm          num    (mm)
+    flange_thickness_in          num    (in)
+    root_radius_mm               num    (mm)
+    root_radius_in               num    (in)
+    toe_radius_mm                num    (mm)
+    toe_radius_in                num    (in)
+    area_cm2                     num    (cm²)
+    area_in2                     num    (in²)
+
+✅ bearing_pile  (p53, 54, 55)
+  Description: Bearing Pile
+  Output fields:
+    weight_lb_ft                 num    (lb/ft)
+    weight_kg_m                  num    (kg/m)
+    depth_in                     num    (in)
+    depth_mm                     num    (mm)
+    flange_width_in              num    (in)
+    flange_width_mm              num    (mm)
+    web_thickness_in             num    (in)
+    web_thickness_mm             num    (mm)
+    corner_radius_in             num    (in)
+    corner_radius_mm             num    (mm)
+    area_in2                     num    (in²)
+    area_cm2                     num    (cm²)
+    Ix_in4                       num    (in⁴)
+    Ix_cm4                       num    (cm⁴)
+    Iy_in4                       num    (in⁴)
+    Iy_cm4                       num    (cm⁴)
+    ix_in                        num    (in)
+    ix_cm                        num    (cm)
+    iy_in                        num    (in)
+    iy_cm                        num    (cm)
+    Zx_in3                       num    (in³)
+    Zx_cm3                       num    (cm³)
+    Zy_in3                       num    (in³)
+    Zy_cm3                       num    (cm³)
+
+===============================================================================
+STEEL PILES (pages 57-65)
+===============================================================================
+
+⏭️ steel_qualities  (p57)
+  Description: Steel Qualities
+  No tabular data — not parseable.
+  (Descriptive text)
+
+⏭️ recommended_working_stresses_for_steel_sheet_piling  (p57)
+  Description: Recommended Working Stresses
+  No tabular data — not parseable.
+  (Reference stress table)
+
+✅ frodingham_steel_sheet_piling  (p58)
+  Description: Frodingham Steel Sheet Piling
+  Output fields:
+    width_b_mm                   num    (mm)
+    height_h_mm                  num    (mm)
+    web_thickness_d_mm           num    (mm)
+    flange_thickness_t_mm        num    (mm)
+    f1_mm                        num    (mm)
+    f2_mm                        num    (mm)
+    section_area_cm2             num    (cm²)
+    weight_per_m_wall_kg         num    (kg/m of wall)
+    weight_per_m2_kg             num    (kg/m²)
+    moment_of_inertia_cm4        num    (cm⁴)
+    modulus_of_section_cm3       num    (cm³)
+
+✅ larssen_steel_sheet_piling  (p59)
+  Description: Larssen Steel Sheet Piling
+  Output fields:
+    width_b_mm                   num    (mm)
+    height_h_mm                  num    (mm)
+    web_thickness_d_mm           num    (mm)
+    flange_thickness_t_mm        num    (mm)
+    flat_pan_mm                  num    (mm)
+    section_area_cm2             num    (cm²)
+    weight_per_m_wall_kg         num    (kg/m of wall)
+    weight_per_m2_kg             num    (kg/m²)
+    moment_of_inertia_cm4        num    (cm⁴)
+    modulus_of_section_cm3       num    (cm³)
+
+⏭️ circular_construction  (p60)
+  Description: Circular Construction
+  No tabular data — not parseable.
+  (Engineering reference data)
+
+⏭️ minimum_effective_life_for_maximum_stress  (p61)
+  Description: Minimum Effective Life for Max Stress
+  No tabular data — not parseable.
+  (Complex process table)
+
+✅ u_type  (p62, 63)
+  Description: U-Type Steel Piles
+  Output fields:
+    width_w_mm                   num    (mm)
+    height_h_mm                  num    (mm)
+    thickness_t_mm               num    (mm)
+    section_area_cm2             num    (cm²)
+    weight_per_pile_kg           num    (kg/m)
+    weight_per_wall_kg           num    (kg/m²)
+    moment_inertia_cm4           num    (cm⁴)
+    moment_inertia_per_m_cm4     num    (cm⁴/m)
+    modulus_cm3                  num    (cm³)
+    modulus_per_m_cm3            num    (cm³/m)
+    width_w_mm                   num    (mm)
+    height_h_mm                  num    (mm)
+    thickness_t_mm               num    (mm)
+    section_area_cm2             num    (cm²)
+    weight_per_pile_kg           num    (kg/m)
+    weight_per_wall_kg           num    (kg/m²)
+    moment_inertia_cm4           num    (cm⁴)
+    moment_inertia_per_m_cm4     num    (cm⁴/m)
+    modulus_cm3                  num    (cm³)
+    modulus_per_m_cm3            num    (cm³/m)
+    width_w_in                   num    (in)
+    height_h_in                  num    (in)
+    thickness_t_in               num    (in)
+
+✅ z_type  (p64)
+  Description: Z-Type Steel Piles
+  Output fields:
+    width_w_mm                   num    (mm)
+    height_h_mm                  num    (mm)
+    t1_mm                        num    (mm)
+    t2_mm                        num    (mm)
+    section_area_cm2             num    (cm²)
+    weight_per_pile_kg           num    (kg/m)
+    weight_per_wall_kg           num    (kg/m²)
+    moment_inertia_cm4           num    (cm⁴)
+    moment_inertia_per_m_cm4     num    (cm⁴/m)
+    modulus_cm3                  num    (cm³)
+    modulus_per_m_cm3            num    (cm³/m)
+    width_w_in                   num    (in)
+
+⏭️ straight_web_type  (p64)
+  Description: Straight Web Type
+  No tabular data — not parseable.
+  (Part of Z-type page)
+
+===============================================================================
+API PIPES (pages 66-85)
+===============================================================================
+
+✅ api_pipes  (p66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84)
+  Description: API Pipes ERW & Seamless
+  Output fields:
+    schedule_number              num   
+    schedule_type                num   
+    wall_thickness_in            num    (in)
+    wall_thickness_mm            num    (mm)
+    weight_lb_ft                 num    (lb/ft)
+    weight_kg_m                  num    (kg/m)
+    weight_kg_ft                 num    (kg/ft)
+    hydro_std                    num    (psi)
+    hydro_alt                    num    (psi)
+    hydro_std_2                  num    (psi)
+    hydro_alt_2                  num    (psi)
+    x42                          num    (psi)
+    x46                          num    (psi)
+    x52                          num    (psi)
+    x56                          num    (psi)
+    x60                          num    (psi)
+    x65                          num    (psi)
+    x70                          num    (psi)
+    schedule_number              num   
+    schedule_type                num   
+    wall_thickness_in            num    (in)
+    wall_thickness_mm            num    (mm)
+    weight_lb_ft                 num    (lb/ft)
+    weight_kg_m                  num    (kg/m)
+    weight_kg_ft                 num    (kg/ft)
+    hydro_std                    num    (psi)
+    hydro_alt                    num    (psi)
+    hydro_std_2                  num    (psi)
+    hydro_alt_2                  num    (psi)
+    x42                          num    (psi)
+    x46                          num    (psi)
+    x52                          num    (psi)
+    x56                          num    (psi)
+
+===============================================================================
+COLD FORMED HOLLOW SECTIONS (pages 86-100)
+===============================================================================
+
+⏭️ product_list_and_standard_specifications  (p86, 87, 88, 89)
+  Description: Product List and Standard Specs
+  No tabular data — not parseable.
+  (Product list + spec text)
+
+✅ square_metric  (p90, 91, 92)
+  Description: Cold Formed Square Hollow Sections (Metric)
+  Output fields:
+    wall_thickness_mm            num    (mm)
+    weight_kg_m                  num    (kg/m)
+    area_cm2                     num    (cm²)
+    Ix_cm4                       num    (cm⁴)
+    Iy_cm4                       num    (cm⁴)
+    ix_cm                        num    (cm)
+    iy_cm                        num    (cm)
+    Zx_cm3                       num    (cm³)
+    Zy_cm3                       num    (cm³)
+
+✅ rectangular_metric  (p92, 93, 94)
+  Description: Cold Formed Rectangular Hollow Sections (Metric)
+  Output fields:
+    wall_thickness_mm            num    (mm)
+    weight_kg_m                  num    (kg/m)
+    area_cm2                     num    (cm²)
+    Ix_cm4                       num    (cm⁴)
+    Iy_cm4                       num    (cm⁴)
+    ix_cm                        num    (cm)
+    iy_cm                        num    (cm)
+    Zx_cm3                       num    (cm³)
+    Zy_cm3                       num    (cm³)
+
+✅ square_imperial  (p94, 95, 96, 97)
+  Description: Cold Formed Square Hollow Sections (Imperial)
+  Output fields:
+    wall_thickness_in            num    (in)
+    wall_thickness_mm            num    (mm)
+    weight_lb_ft                 num    (lb/ft)
+    weight_kg_m                  num    (kg/m)
+    area_in2                     num    (in²)
+    I_in4                        num    (in⁴)
+    i_in                         num    (in)
+    Z_in3                        num    (in³)
+
+✅ rectangular_imperial  (p97, 98, 99, 100)
+  Description: Cold Formed Rectangular Hollow Sections (Imperial)
+  Output fields:
+    wall_thickness_in            num    (in)
+    wall_thickness_mm            num    (mm)
+    weight_lb_ft                 num    (lb/ft)
+    weight_kg_m                  num    (kg/m)
+    area_in2                     num    (in²)
+    Ix_in4                       num    (in⁴)
+    Iy_in4                       num    (in⁴)
+    ix_in                        num    (in)
+    iy_in                        num    (in)
+    Zx_in3                       num    (in³)
+    Zy_in3                       num    (in³)
+
+===============================================================================
+HOT FORMED HOLLOW SECTIONS (pages 101-111)
+===============================================================================
+
+⏭️ hot_formed_hollow_sections_intro  (p101, 102, 103, 104)
+  Description: Hot Formed Hollow Sections Intro
+  No tabular data — not parseable.
+  (Intro + spec references)
+
+✅ hot_formed_hollow_sections  (p105, 106, 107, 108, 109, 110, 111)
+  Description: Hot Formed Hollow Sections
+  Output fields:
+    wall_thickness_mm            num    (mm)
+    weight_kg_m                  num    (kg/m)
+    area_cm2                     num    (cm²)
+    I_cm4                        num    (cm⁴)
+    r_cm                         num    (cm)
+    Z_cm3                        num    (cm³)
+    S_cm3                        num    (cm³)
+    J_cm4                        num    (cm⁴)
+    C_cm3                        num    (cm³)
+    superficial_area_m2          num    (m²/m)
+    length_per_tonne_m           num    (m)
+    wall_thickness_mm            num    (mm)
+    weight_kg_m                  num    (kg/m)
+    area_cm2                     num    (cm²)
+    Ix_cm4                       num    (cm⁴)
+    Iy_cm4                       num    (cm⁴)
+    ix_cm                        num    (cm)
+    iy_cm                        num    (cm)
+    Zx_cm3                       num    (cm³)
+    Zy_cm3                       num    (cm³)
+    Sx_cm3                       num    (cm³)
+    Sy_cm3                       num    (cm³)
+    J_cm4                        num    (cm⁴)
+    C_cm3                        num    (cm³)
+    superficial_area_m2          num    (m²/m)
+    length_per_tonne_m           num    (m)
+    wall_thickness_mm            num    (mm)
+    weight_kg_m                  num    (kg/m)
+    area_cm2                     num    (cm²)
+    I_cm4                        num    (cm⁴)
+    r_cm                         num    (cm)
+    Z_cm3                        num    (cm³)
+    S_cm3                        num    (cm³)
+    J_cm4                        num    (cm⁴)
+    C_cm3                        num    (cm³)
+    superficial_area_m2          num    (m²/m)
+
+===============================================================================
+PIPES (pages 112-125)
+===============================================================================
+
+⏭️ technical_specs_and_standards  (p112, 113, 114, 115)
+  Description: Technical Specs and Standards
+  No tabular data — not parseable.
+  (Pipe spec reference text)
+
+✅ bs_welded_steel_pipes  (p117)
+  Description: BS 1387 Welded Steel Pipes
+  Output fields:
+    od_max_mm                    num    (mm)
+    od_min_mm                    num    (mm)
+    wall_thickness_mm            num    (mm)
+    weight_plain_kg_m            num    (kg/m)
+    weight_plain_kg_ft           num    (kg/ft)
+    weight_coupling_kg_m         num    (kg/m)
+    weight_coupling_kg_ft        num    (kg/ft)
+    threads_per_inch             num   
+    socket_od_mm                 num    (mm)
+    socket_length_min_mm         num    (mm)
+
+✅ carbon_steel_for_general_structural  (p120, 125)
+  Description: Carbon Steel Pipes for General Structural JIS G3444
+  Output fields:
+    nominal_mm                   num    (mm)
+    od_min_mm                    num    (mm)
+    od_max_mm                    num    (mm)
+    wall_in                      num    (in)
+    wall_mm                      num    (mm)
+    weight_kg_m                  num    (kg/m)
+    weight_kg_ft                 num    (kg/ft)
+    weight_lb_ft                 num    (lb/ft)
+    wall_thickness_mm            num    (mm)
+    weight_kg_m                  num    (kg/m)
+    area_cm2                     num    (cm²)
+    I_cm4                        num    (cm⁴)
+    Z_cm3                        num    (cm³)
+    r_cm                         num    (cm)
+
+✅ carbon_steel_for_scaffolding  (p121)
+  Description: Carbon Steel Pipes for Scaffolding JIS G3444
+  Output fields:
+    stk_grade                    num   
+    od_min_mm                    num    (mm)
+    od_max_mm                    num    (mm)
+    wall_thickness_mm            num    (mm)
+    weight_kg_m                  num    (kg/m)
+    area_cm2                     num    (cm²)
+    moment_inertia_cm4           num    (cm⁴)
+    section_modulus_cm3          num    (cm³)
+    gyration_radius_cm           num    (cm)
+
+✅ carbon_steel_for_ordinary_piping  (p122)
+  Description: Carbon Steel Pipes for Ordinary Piping JIS G3452
+  Output fields:
+    od_mm                        num    (mm)
+    od_in                        num    (in)
+    wall_mm                      num    (mm)
+    wall_in                      num    (in)
+    weight_lb_ft                 num    (lb/ft)
+    weight_kg_m                  num    (kg/m)
+    test_pressure_kg             num    (kg/cm²)
+    test_pressure_psi            num    (psi)
+
+⏭️ carbon_steel_for_machine_structural  (p123, 124)
+  Description: Carbon Steel for Machine Structural JIS G3445
+  Note: Schedule-like table with continuation rows
+  Planned output fields:
+    section                      str   
+    nominal_mm                   num    (mm)
+    od_min_mm                    num    (mm)
+    od_max_mm                    num    (mm)
+    wall_in                      num    (in)
+    wall_mm                      num    (mm)
+    weight_kg_m                  num    (kg/m)
+    weight_lb_ft                 num    (lb/ft)
+
+===============================================================================
+CHANNELS (pages 126-135)
+===============================================================================
+
+⏭️ product_list_channels  (p126)
+  Description: Product List — Channels
+  No tabular data — not parseable.
+  (TOC)
+
+⏭️ safe_loads_channels  (p127)
+  Description: Safe Loads — Channels
+  Note: Safe load matrix; similar to I-beam safe loads
+  Planned output fields:
+    section                      str   
+    mass_per_m                   num    (kg/m)
+    span_*                       num    (kN)
+    critical_span                num    (m)
+
+✅ plain_channels  (p128)
+  Description: Plain Channels JIS G3350
+  Output fields:
+    weight_kg_m                  num    (kg/m)
+    thickness_mm                 num    (mm)
+    area_cm2                     num    (cm²)
+    Cx_cm                        num    (cm)
+    Cy_cm                        num    (cm)
+    Ix_cm4                       num    (cm⁴)
+    Iy_cm4                       num    (cm⁴)
+    Rx_cm                        num    (cm)
+    Ry_cm                        num    (cm)
+    Zx_cm3                       num    (cm³)
+    Zy_cm3                       num    (cm³)
+    Mx_kg_m                      num    (kg/m)
+    M                            num    (cm)
+    Q                            num    (kg/m)
+
+✅ lipped_channels  (p129)
+  Description: Lipped Channels JIS G3350
+  Output fields:
+    weight_kg_m                  num    (kg/m)
+    thickness_mm                 num    (mm)
+    area_cm2                     num    (cm²)
+    Cx_cm                        num    (cm)
+    Cy_cm                        num    (cm)
+    Ix_cm4                       num    (cm⁴)
+    Iy_cm4                       num    (cm⁴)
+    Rx_cm                        num    (cm)
+    Ry_cm                        num    (cm)
+    Zx_cm3                       num    (cm³)
+    Zy_cm3                       num    (cm³)
+    Zx1_cm3                      num    (cm³)
+    Mx_kg_m                      num    (kg/m)
+    M                            num    (cm)
+    Q                            num    (kg/m)
+
+✅ din_1026_channels  (p130)
+  Description: DIN 1026 Channels
+  Output fields:
+    height_h_mm                  num    (mm)
+    width_b_mm                   num    (mm)
+    web_s_mm                     num    (mm)
+    flange_t_mm                  num    (mm)
+    r1_mm                        num    (mm)
+    r2_mm                        num    (mm)
+    area_cm2                     num    (cm²)
+    weight_kg_m                  num    (kg/m)
+    surface_m2                   num    (m²/m)
+    Jx_cm4                       num    (cm⁴)
+    Wx_cm3                       num    (cm³)
+    ix_cm                        num    (cm)
+    Jy_cm4                       num    (cm⁴)
+    Wy_cm3                       num    (cm³)
+    iy_cm                        num    (cm)
+    Sx_cm3                       num    (cm³)
+    sx_cm3                       num    (cm³)
+    ey_cm                        num    (cm)
+    XM                           num    (cm)
+
+✅ u_channels  (p131, 132, 133, 134)
+  Description: U-Channels
+  Output fields:
+    weight_kg_m                  num    (kg/m)
+    weight_lb_ft                 num    (lb/ft)
+    depth_A_mm                   num    (mm)
+    depth_A_in                   num    (in)
+    width_B_mm                   num    (mm)
+    width_B_in                   num    (in)
+    flange_thickness_t1_mm       num    (mm)
+    flange_thickness_t1_in       num    (in)
+    web_thickness_t2_mm          num    (mm)
+    web_thickness_t2_in          num    (in)
+    corner_r1_mm                 num    (mm)
+    corner_r1_in                 num    (in)
+    r2_mm                        num    (mm)
+    r2_in                        num    (in)
+    area_cm2                     num    (cm²)
+    area_in2                     num    (in²)
+    y_cm                         num    (cm)
+    y_in                         num    (in)
+    Ix_cm4                       num    (cm⁴)
+    Ix_in4                       num    (in⁴)
+    Iy_cm4                       num    (cm⁴)
+    Iy_in4                       num    (in⁴)
+    ix_cm                        num    (cm)
+    ix_in                        num    (in)
+    iy_cm                        num    (cm)
+    iy_in                        num    (in)
+    Zx_cm3                       num    (cm³)
+    Zx_in3                       num    (in³)
+    Zy_cm3                       num    (cm³)
+    Zy_in3                       num    (in³)
+
+✅ inch_series  (p135)
+  Description: U-Channel Inch Series
+  Output fields:
+    depth_H_in                   num    (in)
+    width_B_in                   num    (in)
+    flange_t1_in                 num    (in)
+    web_t2_in                    num    (in)
+    fillet_r_in                  num    (in)
+    area_in2                     num    (in²)
+    weight_kg_m                  num    (kg/m)
+    weight_kg_ft                 num    (kg/ft)
+    weight_lb_ft                 num    (lb/ft)
+    weight_20ft_kg               num    (kg)
+    weight_30ft_kg               num    (kg)
+    weight_40ft_kg               num    (kg)
+
+===============================================================================
+PURLINS (pages 136-140)
+===============================================================================
+
+✅ z_purlins_high_tensile_galvanised  (p136, 137)
+  Description: High-Tensile Galvanised Z-Purlins
+  Output fields:
+    depth_A_mm                   num    (mm)
+    width_B_mm                   num    (mm)
+    flange_C_mm                  num    (mm)
+    lip_D_mm                     num    (mm)
+    thickness_t_mm               num    (mm)
+    area_mm2                     num    (mm²)
+    mass_kg_m                    num    (kg/m)
+
+✅ c_purlins_high_tensile_galvanised  (p138, 139)
+  Description: High-Tensile Galvanised C-Purlins
+  Output fields:
+    depth_A_mm                   num    (mm)
+    width_B_mm                   num    (mm)
+    flange_C_mm                  num    (mm)
+    lip_D_mm                     num    (mm)
+    thickness_t_mm               num    (mm)
+    mass_kg_m                    num    (kg/m)
+
+⏭️ purlin_selection_tables  (p140)
+  Description: Purlin Selection Tables
+  No tabular data — not parseable.
+  (Selection guide text)
+
+===============================================================================
+ANGLES (pages 142-151)
+===============================================================================
+
+⏭️ product_list_angles  (p142)
+  Description: Product List — Angles
+  No tabular data — not parseable.
+  (TOC)
+
+✅ equal_angles  (p143, 144)
+  Description: Equal Angles
+  Output fields:
+    thickness_mm                 num    (mm)
+    weight_kg_m                  num    (kg/m)
+    fillet_radius_mm             num    (mm)
+    area_cm2                     num    (cm²)
+    Cx_cm                        num    (cm)
+    I_cm4                        num    (cm⁴)
+    i_cm                         num    (cm)
+    iv_cm                        num    (cm)
+    Z_cm3                        num    (cm³)
+
+✅ unequal_angles  (p145, 146, 147, 148, 149, 150)
+  Description: Unequal Angles
+  Output fields:
+    thickness_mm                 num    (mm)
+    weight_kg_m                  num    (kg/m)
+    weight_lb_ft                 num    (lb/ft)
+    leg_A_mm                     num    (mm)
+    leg_A_in                     num    (in)
+    leg_B_mm                     num    (mm)
+    leg_B_in                     num    (in)
+    r1_mm                        num    (mm)
+    r2_mm                        num    (mm)
+    r2_in                        num    (in)
+    Ix_cm4                       num    (cm⁴)
+    Ix_in4                       num    (in⁴)
+    Iy_cm4                       num    (cm⁴)
+    Iy_in4                       num    (in⁴)
+    Iu_cm4                       num    (cm⁴)
+    Iu_in4                       num    (in⁴)
+    Iv_cm4                       num    (cm⁴)
+    Iv_in4                       num    (in⁴)
+    ix_cm                        num    (cm)
+    ix_in                        num    (in)
+    iy_cm                        num    (cm)
+    iy_in                        num    (in)
+    iu_cm                        num    (cm)
+    iu_in                        num    (in)
+    iv_cm                        num    (cm)
+    iv_in                        num    (in)
+    tan_a                        num   
+    Zx_cm3                       num    (cm³)
+    Zx_in3                       num    (in³)
+    Zy_cm3                       num    (cm³)
+    Zy_in3                       num    (in³)
+
+⏭️ inverted_angles  (p151)
+  Description: Inverted Angles
+  No tabular data — not parseable.
+  (Text + complex table)
+
+===============================================================================
+BARS (pages 152-157)
+===============================================================================
+
+⏭️ product_list_bars  (p152)
+  Description: Product List — Bars
+  No tabular data — not parseable.
+  (TOC)
+
+✅ flat_bars  (p153, 154)
+  Description: Flat Bars
+  Output fields:
+    left_M_kg_m                  num    (kg/m)
+    left_A_cm2                   num    (cm²)
+    right_thickness_mm           num    (mm)
+    right_width_mm               num    (mm)
+    right_M_kg_m                 num    (kg/m)
+    right_A_cm2                  num    (cm²)
+
+✅ bulb_flats  (p155)
+  Description: Bulb Flats
+  Output fields:
+    thickness_mm                 num    (mm)
+    bulb_height_mm               num    (mm)
+    area_cm2                     num    (cm²)
+    mass_kg_m                    num    (kg/m)
+
+✅ square_deformed_and_round_bars  (p156, 157)
+  Description: Square, Deformed and Round Bars
+  Output fields:
+    weight_kg_m                  num    (kg/m)
+    weight_lb_ft                 num    (lb/ft)
+    side_mm                      num    (mm)
+    side_in                      num    (in)
+    area_cm2                     num    (cm²)
+    area_in2                     num    (in²)
+    I_in4                        num    (in⁴)
+    i_in                         num    (in)
+    Z_in3                        num    (in³)
+    weight_kg_m                  num    (kg/m)
+    area_cm2                     num    (cm²)
+
+===============================================================================
+PLATES (pages 158-176)
+===============================================================================
+
+⏭️ product_list_plates  (p158)
+  Description: Product List — Plates
+  No tabular data — not parseable.
+  (TOC)
+
+⏭️ specifications_plates  (p159, 160, 161, 162, 163, 164, 165, 166, 167)
+  Description: Plates Specifications
+  Note: Spec reference tables (KS/JIS/ASTM/BS)
+  Planned output fields:
+    section                      str   
+    ks                           str   
+    jis                          str   
+    astm                         str   
+    bs                           str   
+
+⏭️ weight_tables_plates  (p168, 169)
+  Description: Plates Weight Tables
+  Note: Matrix weight table — imperial (p168) + metric (p169)
+  Planned output fields:
+    section                      num    (mm)
+    unit_weight                  num    (kg/m²)
+    wt_size_*                    num    (kg)
+
+⏭️ technical_reference_plates  (p170)
+  Description: Technical Reference — Plates
+  No tabular data — not parseable.
+  (Chem comp + mech properties reference)
+
+✅ chequered_plates  (p171)
+  Description: Chequered (Floor) Plates Weight Table
+  Output fields:
+    unit_weight_kg_m2            num    (kg/m²)
+    wt_914x1829                  num   
+    wt_914x3658                  num   
+    wt_1219x2438                 num   
+    wt_1219x3048                 num   
+    wt_1219x4877                 num   
+    wt_1219x6096                 num   
+    wt_1524x3048                 num   
+    wt_1524x6096                 num   
+    unit_weight_lb_ft2           num    (lb/ft²)
+    wt_3x6_ft                    num   
+    wt_3x12_ft                   num   
+    wt_4x8_ft                    num   
+    wt_4x10_ft                   num   
+    wt_4x16_ft                   num   
+    wt_4x20_ft                   num   
+    wt_5x10_ft                   num   
+    wt_5x20_ft                   num   
+
+⏭️ cold_rolled_coils_and_sheets  (p172, 173)
+  Description: Cold Rolled Coils and Sheets
+  Note: Gauge/thickness/weight table with continuation rows
+  Planned output fields:
+    section                      str   
+    thickness_mm                 num    (mm)
+    size                         str   
+    weight_lb_pc                 num    (lb/pc)
+    weight_kg_pc                 num    (kg/pc)
+    pcs_per_ton                  num   
+
+⏭️ electrolytic_galvanised  (p174)
+  Description: Electrolytic Galvanised Coils and Sheets
+  No tabular data — not parseable.
+  (Spec reference (KS/JIS/ASTM))
+
+⏭️ hot_dip_galvanised  (p175)
+  Description: Hot Dip Galvanised Coils and Sheets
+  No tabular data — not parseable.
+  (Spec reference (KS/JIS/ASTM/BS))
+
+✅ galvanised_steel_sheets_dimensions  (p176)
+  Description: Galvanised Steel Sheets Dimensions JIS G3302
+  Output fields:
+    z18_kg_pc                    num    (kg/pc)
+    z18_ib_pc                    num    (lb/pc)
+    z18_pcs_mt                   num    (pcs/mt)
+    z22_kg_pc                    num    (kg/pc)
+    z22_ib_pc                    num    (lb/pc)
+    z22_pcs_mt                   num    (pcs/mt)
+    z27_kg_pc                    num    (kg/pc)
+    z27_ib_pc                    num    (lb/pc)
+    z27_pcs_mt                   num    (pcs/mt)
+
+===============================================================================
+GRATINGS / EXPANDED METAL (pages 177-179)
+===============================================================================
+
+⏭️ galvanised_serrated_gratings  (p177)
+  Description: Galvanised Serrated Gratings — Loading Table
+  Note: Complex loading table with multiple series
+  Planned output fields:
+    section                      str   
+    load_factor                  num   
+    mass_kg_m2                   num    (kg/m²)
+    span_*                       num    (N)
+    max_span                     num    (mm)
+
+⏭️ expanded_metal  (p178, 179)
+  Description: Expanded Metal Specifications
+  Note: Two sub-tables (XM + G); variable column count
+  Planned output fields:
+    section                      str   
+    code_no                      num   
+    material                     str   
+    swm_mm                       num    (mm)
+    lwm_mm                       num    (mm)
+    thickness_mm                 num    (mm)
+    strand_width_mm              num    (mm)
+    weight_kg_m2                 num    (kg/m²)
+
+===============================================================================
+WROUGHT STEEL FITTINGS (pages 180-187)
+===============================================================================
+
+⏭️ product_list_wrought_fittings  (p180)
+  Description: Product List — Wrought Fittings
+  No tabular data — not parseable.
+  (TOC)
+
+⏭️ fitting_ends_and_45_degree_elbows  (p181)
+  Description: Fitting Ends and 45° Elbows — Wrought
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    center_to_face_mm            num    (mm)
+    wall_thickness_mm            num    (mm)
+
+⏭️ 90_degree_elbows_wrought  (p182)
+  Description: 90° Elbows — Wrought
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    center_to_face_mm            num    (mm)
+    wall_thickness_mm            num    (mm)
+
+⏭️ 180_degree_returns_wrought  (p183)
+  Description: 180° Returns — Wrought
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    center_to_center_mm          num    (mm)
+    wall_thickness_mm            num    (mm)
+
+⏭️ reducers_wrought  (p184, 185)
+  Description: Reducers — Wrought
+  Planned output fields:
+    section                      str   
+    length_mm                    num    (mm)
+    wall_thickness_mm            num    (mm)
+
+⏭️ tees_wrought  (p186)
+  Description: Tees — Wrought
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    center_to_face_run_mm        num    (mm)
+    center_to_face_branch_mm     num    (mm)
+    wall_thickness_mm            num    (mm)
+
+⏭️ reducing_fittings_wrought  (p187)
+  Description: Reducing Fittings — Wrought
+  Note: Complex multi-size fitting dimensions
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    wall_thickness_mm            num    (mm)
+    dimensions                   str   
+
+===============================================================================
+FLANGES (pages 188-205)
+===============================================================================
+
+⏭️ jis_5k  (p188)
+  Description: JIS 5K Slip-On Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ jis_10k  (p188)
+  Description: JIS 10K Slip-On Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ ansi_150lb_blind  (p189)
+  Description: ANSI 150LB Blind Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ ansi_300lb_blind  (p189)
+  Description: ANSI 300LB Blind Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ ansi_150lb_slip_on  (p190)
+  Description: ANSI 150LB Slip-On Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ ansi_300lb_slip_on  (p190)
+  Description: ANSI 300LB Slip-On Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ ansi_150lb_welding_neck  (p191)
+  Description: ANSI 150LB Welding Neck Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ ansi_300lb_welding_neck  (p191)
+  Description: ANSI 300LB Welding Neck Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ ansi_class_600  (p192)
+  Description: ANSI Class 600 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ ansi_class_900  (p192)
+  Description: ANSI Class 900 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ ansi_class_1500  (p193)
+  Description: ANSI Class 1500 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs_slip_on_pn_6  (p194)
+  Description: BS Slip-On PN 6 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs_slip_on_pn_10  (p194)
+  Description: BS Slip-On PN 10 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs_slip_on_pn_16  (p195)
+  Description: BS Slip-On PN 16 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs_slip_on_pn_25  (p195)
+  Description: BS Slip-On PN 25 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs_slip_on_pn_40  (p196)
+  Description: BS Slip-On PN 40 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs_slip_on_pn_64  (p196)
+  Description: BS Slip-On PN 64 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs_slip_on_pn_100  (p197)
+  Description: BS Slip-On PN 100 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs_slip_on_pn_160  (p197)
+  Description: BS Slip-On PN 160 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs_slip_on_pn_250  (p198)
+  Description: BS Slip-On PN 250 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ din_welding_neck_pn_16  (p199)
+  Description: DIN Welding Neck PN 16 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ din_welding_neck_pn_40  (p200)
+  Description: DIN Welding Neck PN 40 Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs10_table_a  (p201)
+  Description: BS10 Table A Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs10_table_d  (p201)
+  Description: BS10 Table D Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs10_table_e  (p202)
+  Description: BS10 Table E Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs10_table_f  (p202)
+  Description: BS10 Table F Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs10_table_h  (p203)
+  Description: BS10 Table H Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs10_table_j  (p203)
+  Description: BS10 Table J Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs10_table_k  (p204)
+  Description: BS10 Table K Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs10_table_r  (p204)
+  Description: BS10 Table R Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs10_table_s  (p205)
+  Description: BS10 Table S Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+⏭️ bs10_table_t  (p205)
+  Description: BS10 Table T Flanges
+  Note: Fraction-based nominal sizes
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    thickness_mm                 num    (mm)
+    bolt_circle_mm               num    (mm)
+    bolt_holes                   num   
+    bolt_dia_mm                  num    (mm)
+    hub_dia_mm                   num    (mm)
+    hub_length_mm                num    (mm)
+
+===============================================================================
+STAINLESS STEEL PRODUCTS (pages 206-246)
+===============================================================================
+
+⏭️ general_information  (p206, 207, 208, 209)
+  Description: General Information — Stainless Steel
+  No tabular data — not parseable.
+  (Product list + descriptive text)
+
+⏭️ coils_sheets  (p210)
+  Description: Stainless Steel Coils & Sheets — Specifications
+  Note: Spec reference table
+  Planned output fields:
+    section                      str   
+    aisi                         str   
+    jis                          str   
+    bs                           str   
+    din                          str   
+
+⏭️ sheets_plates  (p211, 212, 213, 214)
+  Description: Stainless Steel Sheets & Plates — Chemical Composition
+  Note: Two-row entries for some grades
+  Planned output fields:
+    section                      str   
+    aisi                         str   
+    jis                          str   
+    din                          str   
+    c_percent                    str   
+    si_percent                   str   
+    mn_percent                   str   
+    p_percent                    str   
+    s_percent                    str   
+    ni_percent                   str   
+    cr_percent                   str   
+    mo_percent                   str   
+    other                        str   
+
+⏭️ angles_stainless  (p216, 217, 218)
+  Description: Stainless Steel Angles — Dimensions & Properties
+  Note: p216-217: descriptive text; p218: angle dimensions
+  Planned output fields:
+    section                      str   
+    characteristics              str   
+
+✅ sheets_plates_weights  (p215)
+  Description: Stainless Steel Sheets and Plates Weights
+  Output fields:
+    weight_304_4x8_kg_pc         num    (kg/pc)
+    pcs_mt_304_4x8               num    (pcs/mt)
+    weight_316_4x8_kg_pc         num    (kg/pc)
+    pcs_mt_316_4x8               num    (pcs/mt)
+    weight_304_5x10_kg_pc        num    (kg/pc)
+    pcs_mt_304_5x10              num    (pcs/mt)
+    weight_316_5x10_kg_pc        num    (kg/pc)
+    pcs_mt_316_5x10              num    (pcs/mt)
+
+⏭️ flats_stainless  (p219)
+  Description: Stainless Steel Flats — Weight Table
+  Note: Matrix weight table
+  Planned output fields:
+    section                      str   
+    thickness_mm                 num    (mm)
+    width_mm                     num    (mm)
+    weight_kg_m                  num    (kg/m)
+
+✅ round_bars_stainless  (p220, 221, 222)
+  Description: Stainless Steel Round Bars
+  Output fields:
+    JIS                          num   
+    BS                           num   
+    DIN                          num   
+    C_percent                    num   
+    Mn_percent                   num   
+    P_percent                    num   
+    S_percent                    num   
+    Si_percent                   num   
+    Cr_percent                   num   
+    Ni_percent                   num   
+    Mo_percent                   num   
+    other_elements               num   
+
+✅ welded_channels_stainless  (p225)
+  Description: Stainless Steel Welded Channels
+  Output fields:
+    tolerance_d_in               num    (in)
+    tolerance_bf_in              num    (in)
+    weight_304_lb_ft             num    (lb/ft)
+    weight_316_lb_ft             num    (lb/ft)
+
+⏭️ hexagon_square_bars_stainless  (p224)
+  Description: Stainless Steel Hexagon & Square Bars — Weights
+  Note: Two side-by-side tables (hex + square)
+  Planned output fields:
+    section                      str   
+    weight_lb_ft                 num    (lb/ft)
+    weight_kg_ft                 num    (kg/ft)
+
+⏭️ welded_tubings_stainless  (p226, 227, 228, 229)
+  Description: Stainless Steel Welded Tubings — Dimensions & Weights
+  Note: Round/square/rectangular tubing tables
+  Planned output fields:
+    section                      num    (mm)
+    wall_thickness_mm            num    (mm)
+    weight_kg_m                  num    (kg/m)
+    available_304l               bool  
+    available_316l               bool  
+    available_321                bool  
+
+⏭️ pipes_stainless  (p230, 231, 232, 233, 234)
+  Description: Stainless Steel Pipes — Schedules & Dimensions
+  Note: Mix of gauge reference + pipe schedules + chem specs
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    wall_mm                      num    (mm)
+    schedule                     str   
+    weight_kg_m                  num    (kg/m)
+
+⏭️ elbows_90_long_radius  (p236)
+  Description: Stainless Steel 90° Long Radius Elbows
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    center_to_face_mm            num    (mm)
+    wall_thickness_mm            num    (mm)
+
+⏭️ elbows_90_short_radius  (p237)
+  Description: Stainless Steel 90° Short Radius Elbows
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    center_to_face_mm            num    (mm)
+    wall_thickness_mm            num    (mm)
+
+⏭️ returns_180_long_radius  (p238)
+  Description: Stainless Steel 180° Long Radius Returns
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    center_to_center_mm          num    (mm)
+    wall_thickness_mm            num    (mm)
+
+⏭️ straight_tees  (p239)
+  Description: Stainless Steel Straight Tees
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    center_to_face_run_mm        num    (mm)
+    center_to_face_branch_mm     num    (mm)
+    wall_thickness_mm            num    (mm)
+
+⏭️ reducing_outlet_tees  (p240, 241)
+  Description: Stainless Steel Reducing Outlet Tees
+  Planned output fields:
+    section                      str   
+    od_run_mm                    num    (mm)
+    od_branch_mm                 num    (mm)
+    center_to_face_mm            num    (mm)
+    wall_thickness_mm            num    (mm)
+
+⏭️ lap_joint_stub_ends  (p242)
+  Description: Stainless Steel Lap Joint Stub Ends
+  Planned output fields:
+    section                      str   
+    od_mm                        num    (mm)
+    length_mm                    num    (mm)
+    flange_diameter_mm           num    (mm)
+    wall_thickness_mm            num    (mm)
+
+⏭️ reducers_stainless  (p243, 244, 245)
+  Description: Stainless Steel Reducers
+  Planned output fields:
+    section                      str   
+    large_od_mm                  num    (mm)
+    small_od_mm                  num    (mm)
+    length_mm                    num    (mm)
+    wall_thickness_mm            num    (mm)
+
+⏭️ caps_stainless  (p246)
+  Description: Stainless Steel Caps
+  No tabular data — not parseable.
+  (Complex dimension table with variable columns)
+
+===============================================================================
+MACHINERY STEEL (pages 248-252)
+===============================================================================
+
+⏭️ product_list_machinery  (p248)
+  Description: Product List — Machinery Steel
+  No tabular data — not parseable.
+  (TOC)
+
+✅ carbon_steel_machinery  (p249)
+  Description: Carbon Steel Machinery KS D3752, JIS G4051
+  Output fields:
+    c                            str   
+    si                           str   
+    mn                           str   
+    p                            str   
+    s                            str   
+    yp                           str   
+    ts                           str   
+    el                           str   
+    ra                           str   
+    impact                       str   
+    hardness                     str   
+    aisi                         str   
+
+✅ chromium_and_crmo_steels  (p250)
+  Description: Alloy Steel Chromium & CrMo KS D3707 D3711, JIS G4104 G4105
+  Output fields:
+    c                            str   
+    si                           str   
+    mn                           str   
+    p                            str   
+    s                            str   
+    cr                           str   
+    mo                           str   
+    yp                           str   
+    ts                           str   
+    el                           str   
+    ra                           str   
+    impact                       str   
+    hardness                     str   
+    aisi                         str   
+
+✅ nickel_chromium_steels  (p251)
+  Description: Alloy Steel NiCr KS D3708 D3709, JIS G4102 G4103
+  Output fields:
+    c                            str   
+    si                           str   
+    mn                           str   
+    p                            str   
+    s                            str   
+    ni                           str   
+    cr                           str   
+    mo                           str   
+    yp                           str   
+    ts                           str   
+    el                           str   
+    ra                           str   
+    impact                       str   
+    hardness                     str   
+    aisi                         str   
+
+✅ cold_finished_free_cutting_steel  (p252)
+  Description: Free Cutting Steel KS D3567, JIS G4804
+  Output fields:
+    c                            str   
+    si                           str   
+    mn                           str   
+    p                            str   
+    s                            str   
+    pb                           str   
+    aisi                         str   
+
+===============================================================================
+NON-FERROUS METALS (pages 254-262)
+===============================================================================
+
+⏭️ product_list_non_ferrous  (p254)
+  Description: Product List — Non-Ferrous
+  No tabular data — not parseable.
+  (TOC)
+
+✅ copper_round_hex_square_bars  (p255)
+  Description: Copper Round, Hexagon & Square Bars Weights
+  Output fields:
+    round_kg_ft                  num    (kg/ft)
+    round_lb_ft                  num    (lb/ft)
+    round_kati_ft                num    (kati/ft)
+    hex_kg_ft                    num    (kg/ft)
+    hex_lb_ft                    num    (lb/ft)
+    hex_kati_ft                  num    (kati/ft)
+    square_kg_ft                 num    (kg/ft)
+    square_lb_ft                 num    (lb/ft)
+    square_kati_ft               num    (kati/ft)
+
+✅ brass_round_hex_square_bars  (p257)
+  Description: Brass Round, Hexagon & Square Bars Weights
+  Output fields:
+    round_kg_ft                  num    (kg/ft)
+    round_lb_ft                  num    (lb/ft)
+    round_kati_ft                num    (kati/ft)
+    hex_kg_ft                    num    (kg/ft)
+    hex_lb_ft                    num    (lb/ft)
+    hex_kati_ft                  num    (kati/ft)
+    square_kg_ft                 num    (kg/ft)
+    square_lb_ft                 num    (lb/ft)
+    square_kati_ft               num    (kati/ft)
+
+⏭️ copper_flat_bars  (p256)
+  Description: Copper Flat Bars — Sizes and Unit Weights
+  Note: Matrix weight table (width x thickness); fraction-based
+  Planned output fields:
+    section                      str   
+    weight_lb_ft                 num    (lb/ft)
+
+⏭️ brass_flat_bars  (p258)
+  Description: Brass Flat Bars — Sizes and Unit Weights
+  Note: Matrix weight table; identical structure to copper flat bars
+  Planned output fields:
+    section                      str   
+    weight_lb_ft                 num    (lb/ft)
+
+✅ brass_sheets  (p259)
+  Description: Brass Sheets
+  Output fields:
+    thickness_mm                 num    (mm)
+    width_in                     num    (in)
+    length_in                    num    (in)
+    weight_kg                    num    (kg)
+
+⏭️ bronze_continuous_casting_info  (p260)
+  Description: Bronze Continuous Casting Info
+  No tabular data — not parseable.
+  (Descriptive text)
+
+⏭️ bronze_tube_stock_sizes  (p261)
+  Description: Bronze Tube Stock Sizes & Weights
+  Note: Paired-column layout with continuation rows
+  Planned output fields:
+    section                      str   
+    id_mm                        num    (mm)
+    solid_weight_kg_ft           num    (kg/ft)
+
+⏭️ bronze_centrifugal_cast  (p262)
+  Description: Bronze Centrifugally Cast — Sizes
+  Note: Same paired-column layout as tube stock
+  Planned output fields:
+    section                      str   
+    id_mm                        num    (mm)
+    solid_weight_kg_ft           num    (kg/ft)
+
+===============================================================================
+APPENDIX (page 265)
+===============================================================================
+
+✅ gauge_table  (p265)
+  Description: Gauge Table SWG BWG BG BS USG
+  Output fields:
+    swg_mm                       num    (mm)
+    bwg_mm                       num    (mm)
+    bg_mm                        num    (mm)
+    usg_mm                       num    (mm)

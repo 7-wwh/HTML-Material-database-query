@@ -6,4 +6,6 @@ Plumber/*.db-shm
 Plumber/images/
 database/html_output/
 database/firestore_export/
+database/firestore_organized/
+database/__pycache__/
 firebase-key.json

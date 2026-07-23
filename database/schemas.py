@@ -11,21 +11,43 @@ class ColumnDef:
 
 
 @dataclass
-class TableSchema:
-    page_type: str
-    name: str
+class PageGroup:
     pages: list
     skip_header_rows: int
     footer_pattern: str
     section_pattern: str
-    value_count: int
-    columns: list
+    value_count: int = 0
+    columns: list = field(default_factory=list)
     continuation_value_count: Optional[int] = None
     max_data_rows: Optional[int] = None
+    section_column_idx: int = 0
+    parser: str = "token"  # "token", "two_row", "paired", "matrix", "flange"
+    pair_invert: bool = False  # for paired mode: True = split left half are value headers
+    cell_aligned: bool = False  # True: each cell maps directly to a column (no token split)
+    join_remaining: bool = False  # True: join extra tokens into last column value
+    merge_fractions: bool = False  # True: merge "N/" rows with following row
+    strip_metrics: bool = False  # True: strip parenthetical "(mm)" values
+    parse_fractions: bool = False  # True: convert "1/2" to 0.5 in numeric fields
+    grid_cols: int = 0  # number of column headers in a grid (for page 33-34 style tables)
+    grid_header_row: int = 0  # row index (within data rows) containing column headers
 
 
-# Matches section names that start with W (e.g. "W4 4 x 4 (102 x 102)")
-# OR contain an x-dimension (e.g. "8 x 8", "100 x 50", "6 x 4 (J)")
+LEAF_DATA_TABLE = "table"
+LEAF_DATA_SKIP = "skip"
+LEAF_DATA_RAW = "raw"
+
+
+@dataclass
+class LeafSchema:
+    leaf_id: str
+    name: str
+    pages: list
+    data_type: str = LEAF_DATA_TABLE
+    page_groups: list = field(default_factory=list)
+
+
+# ── Pattern definitions (kept from original) ──
+
 SECTION_PATTERN_CORE = (
     r"^("
     r"(?:W\d+\s+\d+(?:\s*x\s*\d+(?:/\d+)?)?\s*(?:\([^)]+\))?)"
@@ -35,1115 +57,1299 @@ SECTION_PATTERN_CORE = (
     r"\s*"
 )
 
-# Pattern for dimension-based sections like "13 x 13", "50 x 25", "100 x 50 x 20"
 SECTION_PATTERN_DIM = r"^(\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?(?:\s*x\s*\d+(?:\.\d+)?)?)\s*"
 
-# Pattern for dimension with optional imperial equivalent like "127 x 64 (5 x 2 1/2)"
 SECTION_PATTERN_DIM_IMPERIAL = (
     r"^(\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?(?:\s*x\s*\d+(?:\.\d+)?)?"
     r"\s*\([^)]*\))\s*"
 )
 
-# Pattern for imperial+fraction dimension like "1/2 x 1/2 12.7 x 12.7"
 SECTION_PATTERN_FRAC_DIM = (
     r"^((?:\d+(?:[-\s]\d+)?(?:/\d+)?\s*x\s*)+\d+(?:[-\s]\d+)?(?:/\d+)?"
     r"(?:\s+\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?)?)\s*"
 )
 
-# Pattern for pile section names like "1BXN", "6W", "KSP-IA", "YSP II"
-# Single token (alphanumeric, may contain hyphen) - stops at first space
 SECTION_PATTERN_PILE = (
     r"^([A-Za-z0-9][-A-Za-z0-9]*(?:\s+(?![0-9]+(?:\s|$))[A-Za-z0-9][-A-Za-z0-9]*)?)\s*"
 )
 
-# Pattern for simple numeric section (pipe OD, bar size)
 SECTION_PATTERN_NUMERIC = r"^(\d+(?:\.\d+)?)\s*"
 
-# Pattern for pipe section with optional fraction like "1/2", "1 1/4", "2 1/2"
-SECTION_PATTERN_PIPE_NOM = r"^(\d+(?:\s+\d+)?(?:/\d+)?)\s*"
-
-# Pattern for flange nominal size
 SECTION_PATTERN_FLANGE = r"^(\d+(?:/\d+)?|½|¼|¾|⅛|⅜|⅝|⅞)\s*"
 
-# Pattern for inverted angle sections
-SECTION_PATTERN_INV_ANGLE = r"^(\d+\s*x\s*\d+(?:\s+\d+\s+\d+\s+\d+\s+\d+)?)\s*"
-
-# Pattern for dimension with optional parenthesized imperial (e.g. "75 x 40 x 5" or "127 x 64 (5 x 2 1/2)")
 SECTION_PATTERN_DIM_OPT_IMPERIAL = (
     r"^(\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?(?:\s*x\s*\d+(?:\.\d+)?)?"
     r"(?:\s*\([^)]*\))?)\s*"
 )
 
-# Pattern for purlin section IDs like "SZ 100-16", "SC100-16"
 SECTION_PATTERN_PURLIN_Z = r"^(SZ\s+\d+-\d+)\s*"
 SECTION_PATTERN_PURLIN_C = r"^(SC\d+-\d+)\s*"
 
-# Pattern for pipe nominal with fraction chars — for "½", "1¼", "2½", "5" etc.
 SECTION_PATTERN_PIPE_NOM_FRAC = r"^((?:\d*[\u00BC-\u00BE\u2150-\u215E]|\d+(?:/\d+)?))\s*"
 
-# Pattern for pipe nominal with both mm + inch cells combined — for "6 ⅛", "50 2", "32 1¼"
 SECTION_PATTERN_PIPE_NOM_DUAL = r"^(\d+(?:\s+(?:\d*[\u00BC-\u00BE\u2150-\u215E]|\d+/\d+|\d+))?)\s*"
 
-# Pattern for pipe OD section — requires at least 2 leading digits to avoid matching continuation rows
 SECTION_PATTERN_STK_OD = r"^(\d{2,}(?:\.\d+)?)\s*"
 
-# Pattern for inch-series channel designations like "C3 x 4.1", "C8 x 11.5"
 SECTION_PATTERN_INCH_CHANNEL = r"^(C\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?)\s*"
 
+SECTION_PATTERN_MATRIX_DIM = r"^(\d+(?:\.\d+)?(?:\s*x\s*\d+(?:\.\d+)?)?)\s*"
+
+SECTION_PATTERN_GAUGE = r"^(\d+)\s*"
+
+SECTION_PATTERN_SS_GRADE = r"^(SUS\s*\d+|AISI\s*\d+|Type\s+\d+)\s*"
+
+SECTION_PATTERN_API = r"^(\d+(?:-\d+(?:/\d+)?)?(?:/\d+)?\s+\d+(?:[-\s]\d+(?:/\d+)?)?(?:\.\d+)?\s+\d+(?:\.\d+)?)\s*"
+
 FOOTER_PATTERN = r"YICK HOE|YICK HOE GROUP OF COMPANY"
-FOOTER_PATTERN_NOTES = r"YICK HOE|YICK HOE GROUP OF COMPANY|Note:|Sizes indicated|L = Light"
-FOOTER_PATTERN_TOL = r"YICK HOE|YICK HOE GROUP OF COMPANY|Note:|Tolerance|Wall Thickness"
-FOOTER_PATTERN_STK = r"YICK HOE|YICK HOE GROUP OF COMPANY|Applicable Tolerances|mm and over|Outside Diameter Under|mm or over"
+FOOTER_PATTERN_NOTES = r"YICK HOE|YICK HOE GROUP OF COMPANY|Note\s*:|Sizes indicated|L = Light|Intermediate values"
+FOOTER_PATTERN_TOL = r"YICK HOE|YICK HOE GROUP OF COMPANY|Note\s*:|Tolerance|Wall Thickness"
+FOOTER_PATTERN_STK = r"YICK HOE|YICK HOE GROUP OF COMPANY|Applicable Tolerances|mm and over|Outside Diameter Under|mm or over|Note\s*:"
 
-# ──────────────────────────────────────────────
-# 1) Universal Beam Dimensions (imperial, 7 pairs)
-# ──────────────────────────────────────────────
-BEAM_DIMENSIONS = TableSchema(
-    page_type="beam_dimensions",
-    name="Universal Beam Dimensions",
-    pages=[37, 39, 41, 43, 45],
-    skip_header_rows=6,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_CORE,
-    value_count=14,
-    columns=[
-        ColumnDef("weight_lb_ft", unit="lb/ft"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("area_in2", unit="in²"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("depth_in", unit="in"),
-        ColumnDef("depth_mm", unit="mm"),
-        ColumnDef("flange_width_in", unit="in"),
-        ColumnDef("flange_width_mm", unit="mm"),
-        ColumnDef("flange_thickness_in", unit="in"),
-        ColumnDef("flange_thickness_mm", unit="mm"),
-        ColumnDef("web_thickness_in", unit="in"),
-        ColumnDef("web_thickness_mm", unit="mm"),
-        ColumnDef("corner_radius_in", unit="in"),
-        ColumnDef("corner_radius_mm", unit="mm"),
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LEAF SCHEMA DEFINITIONS
+# ══════════════════════════════════════════════════════════════════════════════
+
+SKIP_LEAF = LEAF_DATA_SKIP
+
+# ── Helper to mark product_list / descriptive-only leaves ──
+
+def skip(name, pages):
+    return LeafSchema(leaf_id=name, name=name, pages=pages, data_type=LEAF_DATA_SKIP)
+
+# ── I-BEAMS (pages 14-55) ──
+
+I_BEAMS_PRODUCT_LIST = skip("i_beams_product_list", list(range(14, 55)))
+
+LEAVES = []
+
+# 1) I-Beams intro: product list + design formulae (pages 14-32) — skip (descriptive)
+LEAVES.append(skip("product_list_and_design_formulae", list(range(14, 21))))
+LEAVES.append(skip("i_beam_stress_strain_diagram", list(range(21, 33))))
+
+# 1a) Slenderness & geometry ratio allowable stress (page 33, BS 449 grid table)
+LEAVES.append(LeafSchema(
+    leaf_id="slenderness_and_geometry_ratio_allowable_stress",
+    name="Slenderness and Geometry Ratio - Allowable Stress (BS 449 Table 3a)",
+    pages=[33],
+    page_groups=[
+        PageGroup(pages=[33], skip_header_rows=4,
+                  footer_pattern=FOOTER_PATTERN_NOTES, section_pattern=r"^(\d+)",
+                  parser="grid", grid_header_row=0, max_data_rows=25,
+                  columns=[
+                      ColumnDef("dt_10", unit="N/mm2"),
+                      ColumnDef("dt_15", unit="N/mm2"),
+                      ColumnDef("dt_20", unit="N/mm2"),
+                      ColumnDef("dt_25", unit="N/mm2"),
+                      ColumnDef("dt_30", unit="N/mm2"),
+                      ColumnDef("dt_35", unit="N/mm2"),
+                      ColumnDef("dt_40", unit="N/mm2"),
+                      ColumnDef("dt_50", unit="N/mm2"),
+                  ]),
     ],
-)
+))
 
-# ──────────────────────────────────────────────
-# 2) Universal Beam Inertia (imperial, 6 pairs)
-# ──────────────────────────────────────────────
-BEAM_INERTIA = TableSchema(
-    page_type="beam_inertia",
-    name="Universal Beam Inertia / Modulus",
-    pages=[38, 40, 42, 44, 46],
-    skip_header_rows=9,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_CORE,
-    value_count=12,
-    columns=[
-        ColumnDef("Ix_in4", unit="in⁴"),
-        ColumnDef("Ix_cm4", unit="cm⁴"),
-        ColumnDef("Iy_in4", unit="in⁴"),
-        ColumnDef("Iy_cm4", unit="cm⁴"),
-        ColumnDef("ix_in", unit="in"),
-        ColumnDef("ix_cm", unit="cm"),
-        ColumnDef("iy_in", unit="in"),
-        ColumnDef("iy_cm", unit="cm"),
-        ColumnDef("Zx_in3", unit="in³"),
-        ColumnDef("Zx_cm3", unit="cm³"),
-        ColumnDef("Zy_in3", unit="in³"),
-        ColumnDef("Zy_cm3", unit="cm³"),
+# 1b) Stanchions allowable axial stress (page 34, BS 449 Table 17a)
+LEAVES.append(LeafSchema(
+    leaf_id="stanchios_and_struts_allowable_stress",
+    name="Stanchions and Struts - Allowable Axial Stress (BS 449 Table 17a)",
+    pages=[34],
+    page_groups=[
+        PageGroup(pages=[34], skip_header_rows=9,
+                  footer_pattern=FOOTER_PATTERN_NOTES, section_pattern=r"^(\d+)",
+                  parser="grid", grid_header_row=0, max_data_rows=25,
+                  columns=[
+                      ColumnDef("pc_0", unit="N/mm2"),
+                      ColumnDef("pc_1", unit="N/mm2"),
+                      ColumnDef("pc_2", unit="N/mm2"),
+                      ColumnDef("pc_3", unit="N/mm2"),
+                      ColumnDef("pc_4", unit="N/mm2"),
+                      ColumnDef("pc_5", unit="N/mm2"),
+                      ColumnDef("pc_6", unit="N/mm2"),
+                      ColumnDef("pc_7", unit="N/mm2"),
+                      ColumnDef("pc_8", unit="N/mm2"),
+                      ColumnDef("pc_9", unit="N/mm2"),
+                  ]),
     ],
-)
+))
 
-# ──────────────────────────────────────────────
-# 3) Universal Beam Metric Dimensions (page 47)
-# ──────────────────────────────────────────────
-BEAM_METRIC_DIMENSIONS = TableSchema(
-    page_type="beam_metric_dimensions",
-    name="Universal Beam Metric Dimensions",
-    pages=[47],
-    skip_header_rows=6,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_CORE,
-    value_count=13,
-    columns=[
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("depth_mm", unit="mm"),
-        ColumnDef("flange_width_mm", unit="mm"),
-        ColumnDef("web_thickness_mm", unit="mm"),
-        ColumnDef("flange_thickness_mm", unit="mm"),
-        ColumnDef("corner_radius_mm", unit="mm"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("Ix_cm4", unit="cm⁴"),
-        ColumnDef("Iy_cm4", unit="cm⁴"),
-        ColumnDef("ix_cm", unit="cm"),
-        ColumnDef("iy_cm", unit="cm"),
-        ColumnDef("Zx_cm3", unit="cm³"),
-        ColumnDef("Zy_cm3", unit="cm³"),
+# 2) Safe loads for grade 43 steel (pages 35-36) — variable span count per beam
+LEAVES.append(LeafSchema(
+    leaf_id="safe_loads_for_grade_43_steel",
+    name="Safe Loads for Grade 43 Steel",
+    pages=[35, 36],
+    page_groups=[
+        PageGroup(pages=[35], skip_header_rows=8,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=r"^(\d+\s*x\s*\d+)",
+                  parser="safe_loads",
+                  columns=[
+                      ColumnDef("mass_per_m", unit="kg"),
+                      ColumnDef("span_2_00", unit="kN"), ColumnDef("span_2_50", unit="kN"),
+                      ColumnDef("span_3_00", unit="kN"), ColumnDef("span_3_50", unit="kN"),
+                      ColumnDef("span_4_00", unit="kN"), ColumnDef("span_4_50", unit="kN"),
+                      ColumnDef("span_5_00", unit="kN"), ColumnDef("span_5_50", unit="kN"),
+                      ColumnDef("span_6_00", unit="kN"), ColumnDef("span_7_00", unit="kN"),
+                      ColumnDef("span_8_00", unit="kN"), ColumnDef("span_9_00", unit="kN"),
+                      ColumnDef("span_10_00", unit="kN"),
+                      ColumnDef("critical_span", unit="m"),
+                  ]),
+        PageGroup(pages=[36], skip_header_rows=8,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=r"^(\d+\s*x\s*\d+)",
+                  parser="safe_loads",
+                  columns=[
+                      ColumnDef("mass_per_m", unit="kg"),
+                      ColumnDef("span_4_00", unit="kN"), ColumnDef("span_5_00", unit="kN"),
+                      ColumnDef("span_6_00", unit="kN"), ColumnDef("span_7_00", unit="kN"),
+                      ColumnDef("span_8_00", unit="kN"), ColumnDef("span_9_00", unit="kN"),
+                      ColumnDef("span_10_00", unit="kN"), ColumnDef("span_11_00", unit="kN"),
+                      ColumnDef("span_12_00", unit="kN"), ColumnDef("span_13_00", unit="kN"),
+                      ColumnDef("span_14_00", unit="kN"), ColumnDef("span_15_00", unit="kN"),
+                      ColumnDef("span_16_00", unit="kN"),
+                      ColumnDef("critical_span", unit="m"),
+                  ]),
     ],
-)
+))
 
-# ──────────────────────────────────────────────
-# 4) Universal Beam Metric Inertia (page 48)
-# ──────────────────────────────────────────────
-BEAM_METRIC_INERTIA = TableSchema(
-    page_type="beam_metric_inertia",
-    name="Universal Beam Metric Inertia",
-    pages=[48],
-    skip_header_rows=9,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_CORE,
-    value_count=13,
-    columns=[
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("depth_mm", unit="mm"),
-        ColumnDef("flange_width_mm", unit="mm"),
-        ColumnDef("web_thickness_mm", unit="mm"),
-        ColumnDef("flange_thickness_mm", unit="mm"),
-        ColumnDef("corner_radius_mm", unit="mm"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("Ix_cm4", unit="cm⁴"),
-        ColumnDef("Iy_cm4", unit="cm⁴"),
-        ColumnDef("ix_cm", unit="cm"),
-        ColumnDef("iy_cm", unit="cm"),
-        ColumnDef("Zx_cm3", unit="cm³"),
-        ColumnDef("Zy_cm3", unit="cm³"),
-    ],
-)
+# 3) Universal beams and columns (pages 37-48) — FULL coverage, merge 4 page types
+LEAVES.append(LeafSchema(
+    leaf_id="universal_beams_and_columns",
+    name="Universal Beams and Columns",
+    pages=list(range(37, 49)),
+    page_groups=[
+        PageGroup(pages=[37, 39, 41, 43, 45], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_CORE,
+                  value_count=14,
+                  columns=[
+                      ColumnDef("weight_lb_ft", unit="lb/ft"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("area_in2", unit="in²"), ColumnDef("area_cm2", unit="cm²"),
+                      ColumnDef("depth_in", unit="in"), ColumnDef("depth_mm", unit="mm"),
+                      ColumnDef("flange_width_in", unit="in"), ColumnDef("flange_width_mm", unit="mm"),
+                      ColumnDef("flange_thickness_in", unit="in"), ColumnDef("flange_thickness_mm", unit="mm"),
+                      ColumnDef("web_thickness_in", unit="in"), ColumnDef("web_thickness_mm", unit="mm"),
+                      ColumnDef("corner_radius_in", unit="in"), ColumnDef("corner_radius_mm", unit="mm"),
+                  ]),
+        PageGroup(pages=[38, 40, 42, 44, 46], skip_header_rows=9,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_CORE,
+                  value_count=12,
+                  columns=[
+                      ColumnDef("Ix_in4", unit="in⁴"), ColumnDef("Ix_cm4", unit="cm⁴"),
+                      ColumnDef("Iy_in4", unit="in⁴"), ColumnDef("Iy_cm4", unit="cm⁴"),
+                      ColumnDef("ix_in", unit="in"), ColumnDef("ix_cm", unit="cm"),
+                      ColumnDef("iy_in", unit="in"), ColumnDef("iy_cm", unit="cm"),
+                      ColumnDef("Zx_in3", unit="in³"), ColumnDef("Zx_cm3", unit="cm³"),
+                      ColumnDef("Zy_in3", unit="in³"), ColumnDef("Zy_cm3", unit="cm³"),
+                  ]),
+        PageGroup(pages=[47], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_CORE,
+                  value_count=13,
+                  columns=[
+                      ColumnDef("weight_kg_m", unit="kg/m"), ColumnDef("depth_mm", unit="mm"),
+                      ColumnDef("flange_width_mm", unit="mm"), ColumnDef("web_thickness_mm", unit="mm"),
+                      ColumnDef("flange_thickness_mm", unit="mm"), ColumnDef("corner_radius_mm", unit="mm"),
+                      ColumnDef("area_cm2", unit="cm²"), ColumnDef("Ix_cm4", unit="cm⁴"),
+                      ColumnDef("Iy_cm4", unit="cm⁴"), ColumnDef("ix_cm", unit="cm"),
+                      ColumnDef("iy_cm", unit="cm"), ColumnDef("Zx_cm3", unit="cm³"),
+                      ColumnDef("Zy_cm3", unit="cm³"),
+                  ]),
+        PageGroup(pages=[48], skip_header_rows=9,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_CORE,
+                  value_count=13,
+                  columns=[
+                      ColumnDef("weight_kg_m", unit="kg/m"), ColumnDef("depth_mm", unit="mm"),
+                      ColumnDef("flange_width_mm", unit="mm"), ColumnDef("web_thickness_mm", unit="mm"),
+                      ColumnDef("flange_thickness_mm", unit="mm"), ColumnDef("corner_radius_mm", unit="mm"),
+                      ColumnDef("area_cm2", unit="cm²"), ColumnDef("Ix_cm4", unit="cm⁴"),
+                      ColumnDef("Iy_cm4", unit="cm⁴"), ColumnDef("ix_cm", unit="cm"),
+                      ColumnDef("iy_cm", unit="cm"), ColumnDef("Zx_cm3", unit="cm³"),
+                      ColumnDef("Zy_cm3", unit="cm³"),
+                  ]),
+    ]))
 
-# ──────────────────────────────────────────────
-# 5) Light Beam Dimensions (imperial)
-# ──────────────────────────────────────────────
-LIGHT_BEAM_DIMENSIONS = TableSchema(
-    page_type="light_beam_dimensions",
-    name="Light Beam Dimensions",
-    pages=[49],
-    skip_header_rows=6,
-    footer_pattern=FOOTER_PATTERN_NOTES,
-    section_pattern=SECTION_PATTERN_CORE,
-    value_count=14,
-    columns=[
-        ColumnDef("weight_lb_ft", unit="lb/ft"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("depth_in", unit="in"),
-        ColumnDef("depth_mm", unit="mm"),
-        ColumnDef("flange_width_in", unit="in"),
-        ColumnDef("flange_width_mm", unit="mm"),
-        ColumnDef("web_thickness_in", unit="in"),
-        ColumnDef("web_thickness_mm", unit="mm"),
-        ColumnDef("flange_thickness_in", unit="in"),
-        ColumnDef("flange_thickness_mm", unit="mm"),
-        ColumnDef("corner_radius_in", unit="in"),
-        ColumnDef("corner_radius_mm", unit="mm"),
-        ColumnDef("area_in2", unit="in²"),
-        ColumnDef("area_cm2", unit="cm²"),
-    ],
-)
+# 4) Light beam and joist (pages 49-52)
+LEAVES.append(LeafSchema(
+    leaf_id="light_beam_and_joist",
+    name="Light Beam and Joist",
+    pages=list(range(49, 53)),
+    page_groups=[
+        PageGroup(pages=[49], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN_NOTES, section_pattern=SECTION_PATTERN_CORE,
+                  value_count=14,
+                  columns=[
+                      ColumnDef("weight_lb_ft", unit="lb/ft"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("depth_in", unit="in"), ColumnDef("depth_mm", unit="mm"),
+                      ColumnDef("flange_width_in", unit="in"), ColumnDef("flange_width_mm", unit="mm"),
+                      ColumnDef("web_thickness_in", unit="in"), ColumnDef("web_thickness_mm", unit="mm"),
+                      ColumnDef("flange_thickness_in", unit="in"), ColumnDef("flange_thickness_mm", unit="mm"),
+                      ColumnDef("corner_radius_in", unit="in"), ColumnDef("corner_radius_mm", unit="mm"),
+                      ColumnDef("area_in2", unit="in²"), ColumnDef("area_cm2", unit="cm²"),
+                  ]),
+        PageGroup(pages=[50, 52], skip_header_rows=9,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_CORE,
+                  value_count=12,
+                  columns=[
+                      ColumnDef("Ix_in4", unit="in⁴"), ColumnDef("Ix_cm4", unit="cm⁴"),
+                      ColumnDef("Iy_in4", unit="in⁴"), ColumnDef("Iy_cm4", unit="cm⁴"),
+                      ColumnDef("ix_in", unit="in"), ColumnDef("ix_cm", unit="cm"),
+                      ColumnDef("iy_in", unit="in"), ColumnDef("iy_cm", unit="cm"),
+                      ColumnDef("Zx_in3", unit="in³"), ColumnDef("Zx_cm3", unit="cm³"),
+                      ColumnDef("Zy_in3", unit="in³"), ColumnDef("Zy_cm3", unit="cm³"),
+                  ]),
+        PageGroup(pages=[51], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_CORE,
+                  value_count=12,
+                  columns=[
+                      ColumnDef("weight_kg_m", unit="kg/m"), ColumnDef("weight_lb_ft", unit="lb/ft"),
+                      ColumnDef("web_thickness_mm", unit="mm"), ColumnDef("web_thickness_in", unit="in"),
+                      ColumnDef("flange_thickness_mm", unit="mm"), ColumnDef("flange_thickness_in", unit="in"),
+                      ColumnDef("root_radius_mm", unit="mm"), ColumnDef("root_radius_in", unit="in"),
+                      ColumnDef("toe_radius_mm", unit="mm"), ColumnDef("toe_radius_in", unit="in"),
+                      ColumnDef("area_cm2", unit="cm²"), ColumnDef("area_in2", unit="in²"),
+                  ]),
+    ]))
 
-# ──────────────────────────────────────────────
-# 6) Light Beam Inertia (imperial)
-# ──────────────────────────────────────────────
-LIGHT_BEAM_INERTIA = TableSchema(
-    page_type="light_beam_inertia",
-    name="Light Beam Inertia / Modulus",
-    pages=[50, 52],
-    skip_header_rows=9,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_CORE,
-    value_count=12,
-    columns=[
-        ColumnDef("Ix_in4", unit="in⁴"),
-        ColumnDef("Ix_cm4", unit="cm⁴"),
-        ColumnDef("Iy_in4", unit="in⁴"),
-        ColumnDef("Iy_cm4", unit="cm⁴"),
-        ColumnDef("ix_in", unit="in"),
-        ColumnDef("ix_cm", unit="cm"),
-        ColumnDef("iy_in", unit="in"),
-        ColumnDef("iy_cm", unit="cm"),
-        ColumnDef("Zx_in3", unit="in³"),
-        ColumnDef("Zx_cm3", unit="cm³"),
-        ColumnDef("Zy_in3", unit="in³"),
-        ColumnDef("Zy_cm3", unit="cm³"),
-    ],
-)
+# 5) Bearing pile (pages 53-55) — page 55 is just a footer
+LEAVES.append(LeafSchema(
+    leaf_id="bearing_pile",
+    name="Bearing Pile",
+    pages=[53, 54, 55],
+    page_groups=[
+        PageGroup(pages=[53], skip_header_rows=5,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_CORE,
+                  value_count=12,
+                  columns=[
+                      ColumnDef("weight_lb_ft", unit="lb/ft"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("depth_in", unit="in"), ColumnDef("depth_mm", unit="mm"),
+                      ColumnDef("flange_width_in", unit="in"), ColumnDef("flange_width_mm", unit="mm"),
+                      ColumnDef("web_thickness_in", unit="in"), ColumnDef("web_thickness_mm", unit="mm"),
+                      ColumnDef("corner_radius_in", unit="in"), ColumnDef("corner_radius_mm", unit="mm"),
+                      ColumnDef("area_in2", unit="in²"), ColumnDef("area_cm2", unit="cm²"),
+                  ]),
+        PageGroup(pages=[54], skip_header_rows=8,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_CORE,
+                  value_count=12,
+                  columns=[
+                      ColumnDef("Ix_in4", unit="in⁴"), ColumnDef("Ix_cm4", unit="cm⁴"),
+                      ColumnDef("Iy_in4", unit="in⁴"), ColumnDef("Iy_cm4", unit="cm⁴"),
+                      ColumnDef("ix_in", unit="in"), ColumnDef("ix_cm", unit="cm"),
+                      ColumnDef("iy_in", unit="in"), ColumnDef("iy_cm", unit="cm"),
+                      ColumnDef("Zx_in3", unit="in³"), ColumnDef("Zx_cm3", unit="cm³"),
+                      ColumnDef("Zy_in3", unit="in³"), ColumnDef("Zy_cm3", unit="cm³"),
+                  ]),
+    ]))
 
-# ──────────────────────────────────────────────
-# 7) Light Beam Metric (page 51)
-# ──────────────────────────────────────────────
-LIGHT_BEAM_METRIC = TableSchema(
-    page_type="light_beam_metric",
-    name="Light Beam Metric Dimensions",
-    pages=[51],
-    skip_header_rows=6,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_CORE,
-    value_count=12,
-    columns=[
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("weight_lb_ft", unit="lb/ft"),
-        ColumnDef("web_thickness_mm", unit="mm"),
-        ColumnDef("web_thickness_in", unit="in"),
-        ColumnDef("flange_thickness_mm", unit="mm"),
-        ColumnDef("flange_thickness_in", unit="in"),
-        ColumnDef("root_radius_mm", unit="mm"),
-        ColumnDef("root_radius_in", unit="in"),
-        ColumnDef("toe_radius_mm", unit="mm"),
-        ColumnDef("toe_radius_in", unit="in"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("area_in2", unit="in²"),
-    ],
-)
+# ── STEEL PILES (pages 57-65) ──
 
-# ──────────────────────────────────────────────
-# 8) Bearing Pile Dimensions (page 53)
-# ──────────────────────────────────────────────
-BEARING_PILE_DIMENSIONS = TableSchema(
-    page_type="bearing_pile_dimensions",
-    name="Bearing Pile Dimensions",
-    pages=[53],
-    skip_header_rows=5,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_CORE,
-    value_count=12,
-    columns=[
-        ColumnDef("weight_lb_ft", unit="lb/ft"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("depth_in", unit="in"),
-        ColumnDef("depth_mm", unit="mm"),
-        ColumnDef("flange_width_in", unit="in"),
-        ColumnDef("flange_width_mm", unit="mm"),
-        ColumnDef("web_thickness_in", unit="in"),
-        ColumnDef("web_thickness_mm", unit="mm"),
-        ColumnDef("corner_radius_in", unit="in"),
-        ColumnDef("corner_radius_mm", unit="mm"),
-        ColumnDef("area_in2", unit="in²"),
-        ColumnDef("area_cm2", unit="cm²"),
-    ],
-)
+LEAVES.append(skip("steel_qualities", [57]))
+LEAVES.append(skip("recommended_working_stresses_for_steel_sheet_piling", [57]))
+LEAVES.append(skip("circular_construction", [60]))
 
-# ──────────────────────────────────────────────
-# 9) Bearing Pile Inertia (page 54)
-# ──────────────────────────────────────────────
-BEARING_PILE_INERTIA = TableSchema(
-    page_type="bearing_pile_inertia",
-    name="Bearing Pile Inertia / Modulus",
-    pages=[54],
-    skip_header_rows=8,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_CORE,
-    value_count=12,
-    columns=[
-        ColumnDef("Ix_in4", unit="in⁴"),
-        ColumnDef("Ix_cm4", unit="cm⁴"),
-        ColumnDef("Iy_in4", unit="in⁴"),
-        ColumnDef("Iy_cm4", unit="cm⁴"),
-        ColumnDef("ix_in", unit="in"),
-        ColumnDef("ix_cm", unit="cm"),
-        ColumnDef("iy_in", unit="in"),
-        ColumnDef("iy_cm", unit="cm"),
-        ColumnDef("Zx_in3", unit="in³"),
-        ColumnDef("Zx_cm3", unit="cm³"),
-        ColumnDef("Zy_in3", unit="in³"),
-        ColumnDef("Zy_cm3", unit="cm³"),
-    ],
-)
+LEAVES.append(skip("minimum_effective_life_for_maximum_stress", [61]))
 
-# ══════════════════════════════════════════════
-# 10) STEEL PILES
-# ══════════════════════════════════════════════
-
-# Frodingham Steel Sheet Piling (page 58)
-# Columns: b, h, d, t, f1, f2, section_area, weight_per_m_wall, weight_per_m2, moment_of_inertia, modulus_of_section
-FRODINGHAM_PILE = TableSchema(
-    page_type="frodingham_pile",
+LEAVES.append(LeafSchema(
+    leaf_id="frodingham_steel_sheet_piling",
     name="Frodingham Steel Sheet Piling",
     pages=[58],
-    skip_header_rows=9,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_PILE,
-    value_count=11,
-    max_data_rows=7,
-    columns=[
-        ColumnDef("width_b_mm", unit="mm"),
-        ColumnDef("height_h_mm", unit="mm"),
-        ColumnDef("web_thickness_d_mm", unit="mm"),
-        ColumnDef("flange_thickness_t_mm", unit="mm"),
-        ColumnDef("f1_mm", unit="mm"),
-        ColumnDef("f2_mm", unit="mm"),
-        ColumnDef("section_area_cm2", unit="cm²"),
-        ColumnDef("weight_per_m_wall_kg", unit="kg/m of wall"),
-        ColumnDef("weight_per_m2_kg", unit="kg/m²"),
-        ColumnDef("moment_of_inertia_cm4", unit="cm⁴"),
-        ColumnDef("modulus_of_section_cm3", unit="cm³"),
-    ],
-)
+    page_groups=[
+        PageGroup(pages=[58], skip_header_rows=9,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_PILE,
+                  value_count=11, max_data_rows=7,
+                  columns=[
+                      ColumnDef("width_b_mm", unit="mm"), ColumnDef("height_h_mm", unit="mm"),
+                      ColumnDef("web_thickness_d_mm", unit="mm"), ColumnDef("flange_thickness_t_mm", unit="mm"),
+                      ColumnDef("f1_mm", unit="mm"), ColumnDef("f2_mm", unit="mm"),
+                      ColumnDef("section_area_cm2", unit="cm²"),
+                      ColumnDef("weight_per_m_wall_kg", unit="kg/m of wall"),
+                      ColumnDef("weight_per_m2_kg", unit="kg/m²"),
+                      ColumnDef("moment_of_inertia_cm4", unit="cm⁴"),
+                      ColumnDef("modulus_of_section_cm3", unit="cm³"),
+                  ]),
+    ]))
 
-# Larssen Steel Sheet Piling (page 59)
-LARSSEN_PILE = TableSchema(
-    page_type="larssen_pile",
+LEAVES.append(LeafSchema(
+    leaf_id="larssen_steel_sheet_piling",
     name="Larssen Steel Sheet Piling",
     pages=[59],
-    skip_header_rows=8,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_PILE,
-    value_count=10,
-    max_data_rows=11,
-    columns=[
-        ColumnDef("width_b_mm", unit="mm"),
-        ColumnDef("height_h_mm", unit="mm"),
-        ColumnDef("web_thickness_d_mm", unit="mm"),
-        ColumnDef("flange_thickness_t_mm", unit="mm"),
-        ColumnDef("flat_pan_mm", unit="mm"),
-        ColumnDef("section_area_cm2", unit="cm²"),
-        ColumnDef("weight_per_m_wall_kg", unit="kg/m of wall"),
-        ColumnDef("weight_per_m2_kg", unit="kg/m²"),
-        ColumnDef("moment_of_inertia_cm4", unit="cm⁴"),
-        ColumnDef("modulus_of_section_cm3", unit="cm³"),
-    ],
-)
+    page_groups=[
+        PageGroup(pages=[59], skip_header_rows=8,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_PILE,
+                  value_count=10, max_data_rows=11,
+                  columns=[
+                      ColumnDef("width_b_mm", unit="mm"), ColumnDef("height_h_mm", unit="mm"),
+                      ColumnDef("web_thickness_d_mm", unit="mm"), ColumnDef("flange_thickness_t_mm", unit="mm"),
+                      ColumnDef("flat_pan_mm", unit="mm"),
+                      ColumnDef("section_area_cm2", unit="cm²"),
+                      ColumnDef("weight_per_m_wall_kg", unit="kg/m of wall"),
+                      ColumnDef("weight_per_m2_kg", unit="kg/m²"),
+                      ColumnDef("moment_of_inertia_cm4", unit="cm⁴"),
+                      ColumnDef("modulus_of_section_cm3", unit="cm³"),
+                  ]),
+    ]))
 
-# KSP U-Type Pile Dimensions & Properties (page 62)
-KSP_U_PILE = TableSchema(
-    page_type="ksp_u_pile",
-    name="KSP U-Type Pile Dimensions and Properties",
-    pages=[62],
-    skip_header_rows=9,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_PILE,
-    value_count=10,
-    columns=[
-        ColumnDef("width_w_mm", unit="mm"),
-        ColumnDef("height_h_mm", unit="mm"),
-        ColumnDef("thickness_t_mm", unit="mm"),
-        ColumnDef("section_area_cm2", unit="cm²"),
-        ColumnDef("weight_per_pile_kg", unit="kg/m"),
-        ColumnDef("weight_per_wall_kg", unit="kg/m²"),
-        ColumnDef("moment_inertia_cm4", unit="cm⁴"),
-        ColumnDef("moment_inertia_per_m_cm4", unit="cm⁴/m"),
-        ColumnDef("modulus_cm3", unit="cm³"),
-        ColumnDef("modulus_per_m_cm3", unit="cm³/m"),
-    ],
-)
+LEAVES.append(LeafSchema(
+    leaf_id="u_type",
+    name="U-Type Steel Piles",
+    pages=[62, 63],
+    page_groups=[
+        PageGroup(pages=[62], skip_header_rows=9,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_PILE,
+                  value_count=10,
+                  columns=[
+                      ColumnDef("width_w_mm", unit="mm"), ColumnDef("height_h_mm", unit="mm"),
+                      ColumnDef("thickness_t_mm", unit="mm"),
+                      ColumnDef("section_area_cm2", unit="cm²"),
+                      ColumnDef("weight_per_pile_kg", unit="kg/m"),
+                      ColumnDef("weight_per_wall_kg", unit="kg/m²"),
+                      ColumnDef("moment_inertia_cm4", unit="cm⁴"),
+                      ColumnDef("moment_inertia_per_m_cm4", unit="cm⁴/m"),
+                      ColumnDef("modulus_cm3", unit="cm³"),
+                      ColumnDef("modulus_per_m_cm3", unit="cm³/m"),
+                  ]),
+        PageGroup(pages=[63], skip_header_rows=8,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_PILE,
+                  value_count=13,
+                  columns=[
+                      ColumnDef("width_w_mm", unit="mm"), ColumnDef("height_h_mm", unit="mm"),
+                      ColumnDef("thickness_t_mm", unit="mm"),
+                      ColumnDef("section_area_cm2", unit="cm²"),
+                      ColumnDef("weight_per_pile_kg", unit="kg/m"),
+                      ColumnDef("weight_per_wall_kg", unit="kg/m²"),
+                      ColumnDef("moment_inertia_cm4", unit="cm⁴"),
+                      ColumnDef("moment_inertia_per_m_cm4", unit="cm⁴/m"),
+                      ColumnDef("modulus_cm3", unit="cm³"),
+                      ColumnDef("modulus_per_m_cm3", unit="cm³/m"),
+                      ColumnDef("width_w_in", unit="in"), ColumnDef("height_h_in", unit="in"),
+                      ColumnDef("thickness_t_in", unit="in"),
+                  ]),
+    ]))
 
-# KSP U-Type Pile continued (page 63) - mixed metric/imperial
-KSP_U_PILE_IMP = TableSchema(
-    page_type="ksp_u_pile_imp",
-    name="KSP U-Type Pile Dimensions (Imperial)",
-    pages=[63],
-    skip_header_rows=8,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_PILE,
-    value_count=13,
-    columns=[
-        ColumnDef("width_w_mm", unit="mm"),
-        ColumnDef("height_h_mm", unit="mm"),
-        ColumnDef("thickness_t_mm", unit="mm"),
-        ColumnDef("section_area_cm2", unit="cm²"),
-        ColumnDef("weight_per_pile_kg", unit="kg/m"),
-        ColumnDef("weight_per_wall_kg", unit="kg/m²"),
-        ColumnDef("moment_inertia_cm4", unit="cm⁴"),
-        ColumnDef("moment_inertia_per_m_cm4", unit="cm⁴/m"),
-        ColumnDef("modulus_cm3", unit="cm³"),
-        ColumnDef("modulus_per_m_cm3", unit="cm³/m"),
-        ColumnDef("width_w_in", unit="in"),
-        ColumnDef("height_h_in", unit="in"),
-        ColumnDef("thickness_t_in", unit="in"),
-    ],
-)
-
-# Z-Type Pile (page 64)
-Z_TYPE_PILE = TableSchema(
-    page_type="z_type_pile",
-    name="Z-Type Pile Dimensions and Properties",
+# z_type and straight_web_type both on page 64, one is the main table + continuation
+LEAVES.append(LeafSchema(
+    leaf_id="z_type",
+    name="Z-Type Steel Piles",
     pages=[64],
-    skip_header_rows=9,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_PILE,
-    value_count=12,
-    columns=[
-        ColumnDef("width_w_mm", unit="mm"),
-        ColumnDef("height_h_mm", unit="mm"),
-        ColumnDef("t1_mm", unit="mm"),
-        ColumnDef("t2_mm", unit="mm"),
-        ColumnDef("section_area_cm2", unit="cm²"),
-        ColumnDef("weight_per_pile_kg", unit="kg/m"),
-        ColumnDef("weight_per_wall_kg", unit="kg/m²"),
-        ColumnDef("moment_inertia_cm4", unit="cm⁴"),
-        ColumnDef("moment_inertia_per_m_cm4", unit="cm⁴/m"),
-        ColumnDef("modulus_cm3", unit="cm³"),
-        ColumnDef("modulus_per_m_cm3", unit="cm³/m"),
-        ColumnDef("width_w_in", unit="in"),
+    page_groups=[
+        PageGroup(pages=[64], skip_header_rows=9,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_PILE,
+                  value_count=12,
+                  columns=[
+                      ColumnDef("width_w_mm", unit="mm"), ColumnDef("height_h_mm", unit="mm"),
+                      ColumnDef("t1_mm", unit="mm"), ColumnDef("t2_mm", unit="mm"),
+                      ColumnDef("section_area_cm2", unit="cm²"),
+                      ColumnDef("weight_per_pile_kg", unit="kg/m"),
+                      ColumnDef("weight_per_wall_kg", unit="kg/m²"),
+                      ColumnDef("moment_inertia_cm4", unit="cm⁴"),
+                      ColumnDef("moment_inertia_per_m_cm4", unit="cm⁴/m"),
+                      ColumnDef("modulus_cm3", unit="cm³"),
+                      ColumnDef("modulus_per_m_cm3", unit="cm³/m"),
+                      ColumnDef("width_w_in", unit="in"),
+                  ]),
+    ]))
+
+LEAVES.append(skip("straight_web_type", [64]))
+
+# ── API PIPES (pages 66-85) ──
+LEAVES.append(LeafSchema(
+    leaf_id="api_pipes",
+    name="API Pipes ERW & Seamless",
+    pages=list(range(66, 85)),
+    page_groups=[
+        PageGroup(pages=[72, 73], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_API,
+                  parser="api_pipes",
+                  columns=[
+                      ColumnDef("schedule_number"),
+                      ColumnDef("schedule_type"),
+                      ColumnDef("wall_thickness_in", unit="in"),
+                      ColumnDef("wall_thickness_mm", unit="mm"),
+                      ColumnDef("weight_lb_ft", unit="lb/ft"),
+                      ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("weight_kg_ft", unit="kg/ft"),
+                      ColumnDef("hydro_std", unit="psi"),
+                      ColumnDef("hydro_alt", unit="psi"),
+                      ColumnDef("hydro_std_2", unit="psi"),
+                      ColumnDef("hydro_alt_2", unit="psi"),
+                      ColumnDef("x42", unit="psi"), ColumnDef("x46", unit="psi"),
+                      ColumnDef("x52", unit="psi"), ColumnDef("x56", unit="psi"),
+                      ColumnDef("x60", unit="psi"), ColumnDef("x65", unit="psi"),
+                      ColumnDef("x70", unit="psi"),
+                  ]),
+        PageGroup(pages=list(range(74, 85)), skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_API,
+                  parser="api_pipes",
+                  columns=[
+                      ColumnDef("schedule_number"),
+                      ColumnDef("schedule_type"),
+                      ColumnDef("wall_thickness_in", unit="in"),
+                      ColumnDef("wall_thickness_mm", unit="mm"),
+                      ColumnDef("weight_lb_ft", unit="lb/ft"),
+                      ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("weight_kg_ft", unit="kg/ft"),
+                      ColumnDef("hydro_std", unit="psi"),
+                      ColumnDef("hydro_alt", unit="psi"),
+                      ColumnDef("hydro_std_2", unit="psi"),
+                      ColumnDef("hydro_alt_2", unit="psi"),
+                      ColumnDef("x42", unit="psi"), ColumnDef("x46", unit="psi"),
+                      ColumnDef("x52", unit="psi"), ColumnDef("x56", unit="psi"),
+                  ]),
     ],
-)
+))
 
-# ══════════════════════════════════════════════
-# 11) COLD FORMED HOLLOW SECTIONS
-# ══════════════════════════════════════════════
+# ── COLD FORMED HOLLOW SECTIONS (pages 86-100) ──
+LEAVES.append(skip("product_list_and_standard_specifications", list(range(86, 90))))
 
-# Cold Formed Square Hollow Sections - Metric (pages 91-92)
-# Columns: t, M(kg/m), A(cm2), Ix(cm4), Iy(cm4), ix(cm), iy(cm), Zx(cm3), Zy(cm3)
-CF_SQUARE_METRIC = TableSchema(
-    page_type="cf_square_metric",
+LEAVES.append(LeafSchema(
+    leaf_id="square_metric",
     name="Cold Formed Square Hollow Sections (Metric)",
-    pages=[91, 92],
-    skip_header_rows=7,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_DIM,
-    value_count=9,
-    columns=[
-        ColumnDef("wall_thickness_mm", unit="mm"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("Ix_cm4", unit="cm⁴"),
-        ColumnDef("Iy_cm4", unit="cm⁴"),
-        ColumnDef("ix_cm", unit="cm"),
-        ColumnDef("iy_cm", unit="cm"),
-        ColumnDef("Zx_cm3", unit="cm³"),
-        ColumnDef("Zy_cm3", unit="cm³"),
-    ],
-)
+    pages=[90, 91, 92],
+    page_groups=[
+        PageGroup(pages=[91, 92], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_DIM,
+                  value_count=9,
+                  columns=[
+                      ColumnDef("wall_thickness_mm", unit="mm"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("area_cm2", unit="cm²"),
+                      ColumnDef("Ix_cm4", unit="cm⁴"), ColumnDef("Iy_cm4", unit="cm⁴"),
+                      ColumnDef("ix_cm", unit="cm"), ColumnDef("iy_cm", unit="cm"),
+                      ColumnDef("Zx_cm3", unit="cm³"), ColumnDef("Zy_cm3", unit="cm³"),
+                  ]),
+    ]))
 
-# Cold Formed Rectangular Hollow Sections - Metric (pages 93-94)
-CF_RECT_METRIC = TableSchema(
-    page_type="cf_rect_metric",
+LEAVES.append(LeafSchema(
+    leaf_id="rectangular_metric",
     name="Cold Formed Rectangular Hollow Sections (Metric)",
-    pages=[93, 94],
-    skip_header_rows=7,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_DIM,
-    value_count=9,
-    columns=[
-        ColumnDef("wall_thickness_mm", unit="mm"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("Ix_cm4", unit="cm⁴"),
-        ColumnDef("Iy_cm4", unit="cm⁴"),
-        ColumnDef("ix_cm", unit="cm"),
-        ColumnDef("iy_cm", unit="cm"),
-        ColumnDef("Zx_cm3", unit="cm³"),
-        ColumnDef("Zy_cm3", unit="cm³"),
-    ],
-)
+    pages=[92, 93, 94],
+    page_groups=[
+        PageGroup(pages=[93, 94], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_DIM,
+                  value_count=9,
+                  columns=[
+                      ColumnDef("wall_thickness_mm", unit="mm"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("area_cm2", unit="cm²"),
+                      ColumnDef("Ix_cm4", unit="cm⁴"), ColumnDef("Iy_cm4", unit="cm⁴"),
+                      ColumnDef("ix_cm", unit="cm"), ColumnDef("iy_cm", unit="cm"),
+                      ColumnDef("Zx_cm3", unit="cm³"), ColumnDef("Zy_cm3", unit="cm³"),
+                  ]),
+    ]))
 
-# Cold Formed Square Hollow Sections - Imperial (pages 95-97)
-# Columns: t(in/mm), M(in/lb/ft kg/m), A(in2), I(in4), i(in), Z(in3)
-CF_SQUARE_IMPERIAL = TableSchema(
-    page_type="cf_square_imperial",
+LEAVES.append(LeafSchema(
+    leaf_id="square_imperial",
     name="Cold Formed Square Hollow Sections (Imperial)",
-    pages=[95, 96, 97],
-    skip_header_rows=7,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_FRAC_DIM,
-    value_count=8,
-    columns=[
-        ColumnDef("wall_thickness_in", unit="in"),
-        ColumnDef("wall_thickness_mm", unit="mm"),
-        ColumnDef("weight_lb_ft", unit="lb/ft"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("area_in2", unit="in²"),
-        ColumnDef("I_in4", unit="in⁴"),
-        ColumnDef("i_in", unit="in"),
-        ColumnDef("Z_in3", unit="in³"),
-    ],
-)
+    pages=[94, 95, 96, 97],
+    page_groups=[
+        PageGroup(pages=[95, 96, 97], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_FRAC_DIM,
+                  value_count=8,
+                  columns=[
+                      ColumnDef("wall_thickness_in", unit="in"), ColumnDef("wall_thickness_mm", unit="mm"),
+                      ColumnDef("weight_lb_ft", unit="lb/ft"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("area_in2", unit="in²"),
+                      ColumnDef("I_in4", unit="in⁴"), ColumnDef("i_in", unit="in"),
+                      ColumnDef("Z_in3", unit="in³"),
+                  ]),
+    ]))
 
-# Cold Formed Rectangular Hollow Sections - Imperial (pages 98-100)
-CF_RECT_IMPERIAL = TableSchema(
-    page_type="cf_rect_imperial",
+LEAVES.append(LeafSchema(
+    leaf_id="rectangular_imperial",
     name="Cold Formed Rectangular Hollow Sections (Imperial)",
-    pages=[98, 99, 100],
-    skip_header_rows=7,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_FRAC_DIM,
-    value_count=11,
-    columns=[
-        ColumnDef("wall_thickness_in", unit="in"),
-        ColumnDef("wall_thickness_mm", unit="mm"),
-        ColumnDef("weight_lb_ft", unit="lb/ft"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("area_in2", unit="in²"),
-        ColumnDef("Ix_in4", unit="in⁴"),
-        ColumnDef("Iy_in4", unit="in⁴"),
-        ColumnDef("ix_in", unit="in"),
-        ColumnDef("iy_in", unit="in"),
-        ColumnDef("Zx_in3", unit="in³"),
-        ColumnDef("Zy_in3", unit="in³"),
+    pages=[97, 98, 99, 100],
+    page_groups=[
+        PageGroup(pages=[98, 99, 100], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_FRAC_DIM,
+                  value_count=11,
+                  columns=[
+                      ColumnDef("wall_thickness_in", unit="in"), ColumnDef("wall_thickness_mm", unit="mm"),
+                      ColumnDef("weight_lb_ft", unit="lb/ft"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("area_in2", unit="in²"),
+                      ColumnDef("Ix_in4", unit="in⁴"), ColumnDef("Iy_in4", unit="in⁴"),
+                      ColumnDef("ix_in", unit="in"), ColumnDef("iy_in", unit="in"),
+                      ColumnDef("Zx_in3", unit="in³"), ColumnDef("Zy_in3", unit="in³"),
+                  ]),
+    ]))
+
+# ── HOT FORMED HOLLOW SECTIONS (pages 101-111) ──
+LEAVES.append(skip("hot_formed_hollow_sections_intro", list(range(101, 105))))
+LEAVES.append(LeafSchema(
+    leaf_id="hot_formed_hollow_sections",
+    name="Hot Formed Hollow Sections",
+    pages=[105, 106, 107, 108, 109, 110, 111],
+    page_groups=[
+        PageGroup(pages=[105, 106, 107], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_DIM,
+                  value_count=11,
+                  columns=[
+                      ColumnDef("wall_thickness_mm", unit="mm"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("area_cm2", unit="cm²"),
+                      ColumnDef("I_cm4", unit="cm⁴"), ColumnDef("r_cm", unit="cm"),
+                      ColumnDef("Z_cm3", unit="cm³"), ColumnDef("S_cm3", unit="cm³"),
+                      ColumnDef("J_cm4", unit="cm⁴"), ColumnDef("C_cm3", unit="cm³"),
+                      ColumnDef("superficial_area_m2", unit="m²/m"),
+                      ColumnDef("length_per_tonne_m", unit="m"),
+                  ]),
+        PageGroup(pages=[108, 109], skip_header_rows=8,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_DIM,
+                  value_count=15,
+                  columns=[
+                      ColumnDef("wall_thickness_mm", unit="mm"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("area_cm2", unit="cm²"),
+                      ColumnDef("Ix_cm4", unit="cm⁴"), ColumnDef("Iy_cm4", unit="cm⁴"),
+                      ColumnDef("ix_cm", unit="cm"), ColumnDef("iy_cm", unit="cm"),
+                      ColumnDef("Zx_cm3", unit="cm³"), ColumnDef("Zy_cm3", unit="cm³"),
+                      ColumnDef("Sx_cm3", unit="cm³"), ColumnDef("Sy_cm3", unit="cm³"),
+                      ColumnDef("J_cm4", unit="cm⁴"), ColumnDef("C_cm3", unit="cm³"),
+                      ColumnDef("superficial_area_m2", unit="m²/m"),
+                      ColumnDef("length_per_tonne_m", unit="m"),
+                  ]),
+        PageGroup(pages=[110, 111], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_NUMERIC,
+                  value_count=10,
+                  columns=[
+                      ColumnDef("wall_thickness_mm", unit="mm"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("area_cm2", unit="cm²"),
+                      ColumnDef("I_cm4", unit="cm⁴"), ColumnDef("r_cm", unit="cm"),
+                      ColumnDef("Z_cm3", unit="cm³"), ColumnDef("S_cm3", unit="cm³"),
+                      ColumnDef("J_cm4", unit="cm⁴"), ColumnDef("C_cm3", unit="cm³"),
+                      ColumnDef("superficial_area_m2", unit="m²/m"),
+                  ]),
+    ]))
+
+# ── PIPES (pages 112-125) ──
+LEAVES.append(skip("technical_specs_and_standards", list(range(112, 116))))
+LEAVES.append(LeafSchema(
+    leaf_id="bs_welded_steel_pipes",
+    name="BS 1387 Welded Steel Pipes",
+    pages=[117],
+    page_groups=[
+        PageGroup(pages=[117], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=r"",
+                  parser="bs1387", max_data_rows=18,
+                  columns=[
+                      ColumnDef("od_max_mm", unit="mm"),
+                      ColumnDef("od_min_mm", unit="mm"),
+                      ColumnDef("wall_thickness_mm", unit="mm"),
+                      ColumnDef("weight_plain_kg_m", unit="kg/m"),
+                      ColumnDef("weight_plain_kg_ft", unit="kg/ft"),
+                      ColumnDef("weight_coupling_kg_m", unit="kg/m"),
+                      ColumnDef("weight_coupling_kg_ft", unit="kg/ft"),
+                      ColumnDef("threads_per_inch"),
+                      ColumnDef("socket_od_mm", unit="mm"),
+                      ColumnDef("socket_length_min_mm", unit="mm"),
+                  ]),
     ],
-)
+))
 
-# ══════════════════════════════════════════════
-# 12) HOT FORMED HOLLOW SECTIONS
-# ══════════════════════════════════════════════
+LEAVES.append(LeafSchema(
+    leaf_id="carbon_steel_for_general_structural",
+    name="Carbon Steel Pipes for General Structural JIS G3444",
+    pages=[120, 125],
+    page_groups=[
+        PageGroup(pages=[120], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN_TOL, section_pattern=SECTION_PATTERN_PIPE_NOM_FRAC,
+                  value_count=8,
+                  columns=[
+                      ColumnDef("nominal_mm", unit="mm"),
+                      ColumnDef("od_min_mm", unit="mm"), ColumnDef("od_max_mm", unit="mm"),
+                      ColumnDef("wall_in", unit="in"), ColumnDef("wall_mm", unit="mm"),
+                      ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("weight_kg_ft", unit="kg/ft"), ColumnDef("weight_lb_ft", unit="lb/ft"),
+                  ]),
+        PageGroup(pages=[125], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN_STK, section_pattern=SECTION_PATTERN_STK_OD,
+                  value_count=6,
+                  columns=[
+                      ColumnDef("wall_thickness_mm", unit="mm"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("area_cm2", unit="cm²"),
+                      ColumnDef("I_cm4", unit="cm⁴"), ColumnDef("Z_cm3", unit="cm³"),
+                      ColumnDef("r_cm", unit="cm"),
+                  ]),
+    ]))
 
-# Hot Formed Square Hollow Sections (pages 105-107)
-# Columns: t, M, A, I, r, Z, S, J, C, superficial_area, length_per_tonne
-HF_SQUARE = TableSchema(
-    page_type="hf_square",
-    name="Hot Formed Square Hollow Sections",
-    pages=[105, 106, 107],
-    skip_header_rows=7,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_DIM,
-    value_count=11,
-    columns=[
-        ColumnDef("wall_thickness_mm", unit="mm"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("I_cm4", unit="cm⁴"),
-        ColumnDef("r_cm", unit="cm"),
-        ColumnDef("Z_cm3", unit="cm³"),
-        ColumnDef("S_cm3", unit="cm³"),
-        ColumnDef("J_cm4", unit="cm⁴"),
-        ColumnDef("C_cm3", unit="cm³"),
-        ColumnDef("superficial_area_m2", unit="m²/m"),
-        ColumnDef("length_per_tonne_m", unit="m"),
+LEAVES.append(LeafSchema(
+    leaf_id="carbon_steel_for_scaffolding",
+    name="Carbon Steel Pipes for Scaffolding JIS G3444",
+    pages=[121],
+    page_groups=[
+        PageGroup(pages=[121], skip_header_rows=8,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=r"",
+                  parser="scaffolding",
+                  columns=[
+                      ColumnDef("stk_grade"),
+                      ColumnDef("od_min_mm", unit="mm"),
+                      ColumnDef("od_max_mm", unit="mm"),
+                      ColumnDef("wall_thickness_mm", unit="mm"),
+                      ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("area_cm2", unit="cm²"),
+                      ColumnDef("moment_inertia_cm4", unit="cm⁴"),
+                      ColumnDef("section_modulus_cm3", unit="cm³"),
+                      ColumnDef("gyration_radius_cm", unit="cm"),
+                  ]),
     ],
-)
+))
 
-# Hot Formed Rectangular Hollow Sections (pages 108-109)
-# Columns: t, M, A, Ix, Iy, ix, iy, Zx, Zy, Sx, Sy, J, C, superf, length/tonne = 15
-HF_RECT = TableSchema(
-    page_type="hf_rect",
-    name="Hot Formed Rectangular Hollow Sections",
-    pages=[108, 109],
-    skip_header_rows=8,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_DIM,
-    value_count=15,
-    columns=[
-        ColumnDef("wall_thickness_mm", unit="mm"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("Ix_cm4", unit="cm⁴"),
-        ColumnDef("Iy_cm4", unit="cm⁴"),
-        ColumnDef("ix_cm", unit="cm"),
-        ColumnDef("iy_cm", unit="cm"),
-        ColumnDef("Zx_cm3", unit="cm³"),
-        ColumnDef("Zy_cm3", unit="cm³"),
-        ColumnDef("Sx_cm3", unit="cm³"),
-        ColumnDef("Sy_cm3", unit="cm³"),
-        ColumnDef("J_cm4", unit="cm⁴"),
-        ColumnDef("C_cm3", unit="cm³"),
-        ColumnDef("superficial_area_m2", unit="m²/m"),
-        ColumnDef("length_per_tonne_m", unit="m"),
-    ],
-)
-
-# Hot Formed Circular Hollow Sections (pages 110-111)
-HF_CIRCULAR = TableSchema(
-    page_type="hf_circular",
-    name="Hot Formed Circular Hollow Sections",
-    pages=[110, 111],
-    skip_header_rows=7,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_NUMERIC,
-    value_count=10,
-    columns=[
-        ColumnDef("wall_thickness_mm", unit="mm"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("I_cm4", unit="cm⁴"),
-        ColumnDef("r_cm", unit="cm"),
-        ColumnDef("Z_cm3", unit="cm³"),
-        ColumnDef("S_cm3", unit="cm³"),
-        ColumnDef("J_cm4", unit="cm⁴"),
-        ColumnDef("C_cm3", unit="cm³"),
-        ColumnDef("superficial_area_m2", unit="m²/m"),
-    ],
-)
-
-# ══════════════════════════════════════════════
-# 13) CHANNELS
-# ══════════════════════════════════════════════
-
-# Plain Channels (page 128)
-# Columns: M, t, A, Cx, Cy, Ix, Iy, Rx, Ry, Zx, Zy, Mx, M, Q
-PLAIN_CHANNEL = TableSchema(
-    page_type="plain_channel",
-    name="Plain Channels JIS G3350",
-    pages=[128],
-    skip_header_rows=7,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_DIM,
-    value_count=14,
-    columns=[
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("thickness_mm", unit="mm"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("Cx_cm", unit="cm"),
-        ColumnDef("Cy_cm", unit="cm"),
-        ColumnDef("Ix_cm4", unit="cm⁴"),
-        ColumnDef("Iy_cm4", unit="cm⁴"),
-        ColumnDef("Rx_cm", unit="cm"),
-        ColumnDef("Ry_cm", unit="cm"),
-        ColumnDef("Zx_cm3", unit="cm³"),
-        ColumnDef("Zy_cm3", unit="cm³"),
-        ColumnDef("Mx_kg_m", unit="kg/m"),
-        ColumnDef("M", unit="cm"),
-        ColumnDef("Q", unit="kg/m"),
-    ],
-)
-
-# Lipped Channels (page 129)
-LIPPED_CHANNEL = TableSchema(
-    page_type="lipped_channel",
-    name="Lipped Channels C-Channel JIS G3350",
-    pages=[129],
-    skip_header_rows=7,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_DIM,
-    value_count=15,
-    columns=[
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("thickness_mm", unit="mm"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("Cx_cm", unit="cm"),
-        ColumnDef("Cy_cm", unit="cm"),
-        ColumnDef("Ix_cm4", unit="cm⁴"),
-        ColumnDef("Iy_cm4", unit="cm⁴"),
-        ColumnDef("Rx_cm", unit="cm"),
-        ColumnDef("Ry_cm", unit="cm"),
-        ColumnDef("Zx_cm3", unit="cm³"),
-        ColumnDef("Zy_cm3", unit="cm³"),
-        ColumnDef("Zx1_cm3", unit="cm³"),
-        ColumnDef("Mx_kg_m", unit="kg/m"),
-        ColumnDef("M", unit="cm"),
-        ColumnDef("Q", unit="kg/m"),
-    ],
-)
-
-# U-Channel Dimensions (pages 131, 133)
-# Columns: M(kg/m), M(lb/ft), A(mm), A(in), B(mm), B(in), t1(mm), t1(in), t2(mm), t2(in), r1(mm), r1(in), r2(mm), r2(in)
-U_CHANNEL_DIM = TableSchema(
-    page_type="u_channel_dim",
-    name="U-Channel Dimensions",
-    pages=[131, 133],
-    skip_header_rows=6,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_DIM_OPT_IMPERIAL,
-    value_count=14,
-    columns=[
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("weight_lb_ft", unit="lb/ft"),
-        ColumnDef("depth_A_mm", unit="mm"),
-        ColumnDef("depth_A_in", unit="in"),
-        ColumnDef("width_B_mm", unit="mm"),
-        ColumnDef("width_B_in", unit="in"),
-        ColumnDef("flange_thickness_t1_mm", unit="mm"),
-        ColumnDef("flange_thickness_t1_in", unit="in"),
-        ColumnDef("web_thickness_t2_mm", unit="mm"),
-        ColumnDef("web_thickness_t2_in", unit="in"),
-        ColumnDef("corner_r1_mm", unit="mm"),
-        ColumnDef("corner_r1_in", unit="in"),
-        ColumnDef("r2_mm", unit="mm"),
-        ColumnDef("r2_in", unit="in"),
-    ],
-)
-
-# U-Channel Properties (pages 132, 134)
-U_CHANNEL_PROP = TableSchema(
-    page_type="u_channel_prop",
-    name="U-Channel Section Properties",
-    pages=[132, 134],
-    skip_header_rows=8,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_DIM_OPT_IMPERIAL,
-    value_count=16,
-    columns=[
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("area_in2", unit="in²"),
-        ColumnDef("y_cm", unit="cm"),
-        ColumnDef("y_in", unit="in"),
-        ColumnDef("Ix_cm4", unit="cm⁴"),
-        ColumnDef("Ix_in4", unit="in⁴"),
-        ColumnDef("Iy_cm4", unit="cm⁴"),
-        ColumnDef("Iy_in4", unit="in⁴"),
-        ColumnDef("ix_cm", unit="cm"),
-        ColumnDef("ix_in", unit="in"),
-        ColumnDef("iy_cm", unit="cm"),
-        ColumnDef("iy_in", unit="in"),
-        ColumnDef("Zx_cm3", unit="cm³"),
-        ColumnDef("Zx_in3", unit="in³"),
-        ColumnDef("Zy_cm3", unit="cm³"),
-        ColumnDef("Zy_in3", unit="in³"),
-    ],
-)
-
-# U-Channel Inch Series (page 135)
-# Columns: H(in), B(in), t1(in), t2(in), r(in), A(in2), M(kg/m), M(kg/ft), M(lb/ft), 20ft(kg), 30ft(kg), 40ft(kg)
-U_CHANNEL_INCH = TableSchema(
-    page_type="u_channel_inch",
-    name="U-Channel Inch Series",
-    pages=[135],
-    skip_header_rows=10,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_INCH_CHANNEL,
-    value_count=12,
-    columns=[
-        ColumnDef("depth_H_in", unit="in"),
-        ColumnDef("width_B_in", unit="in"),
-        ColumnDef("flange_t1_in", unit="in"),
-        ColumnDef("web_t2_in", unit="in"),
-        ColumnDef("fillet_r_in", unit="in"),
-        ColumnDef("area_in2", unit="in²"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("weight_kg_ft", unit="kg/ft"),
-        ColumnDef("weight_lb_ft", unit="lb/ft"),
-        ColumnDef("weight_20ft_kg", unit="kg"),
-        ColumnDef("weight_30ft_kg", unit="kg"),
-        ColumnDef("weight_40ft_kg", unit="kg"),
-    ],
-)
-
-# DIN 1026 Channels (page 130)
-DIN_CHANNEL = TableSchema(
-    page_type="din_channel",
-    name="DIN 1026 Channels",
-    pages=[130],
-    skip_header_rows=7,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_DIM,
-    value_count=19,
-    columns=[
-        ColumnDef("height_h_mm", unit="mm"),
-        ColumnDef("width_b_mm", unit="mm"),
-        ColumnDef("web_s_mm", unit="mm"),
-        ColumnDef("flange_t_mm", unit="mm"),
-        ColumnDef("r1_mm", unit="mm"),
-        ColumnDef("r2_mm", unit="mm"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("surface_m2", unit="m²/m"),
-        ColumnDef("Jx_cm4", unit="cm⁴"),
-        ColumnDef("Wx_cm3", unit="cm³"),
-        ColumnDef("ix_cm", unit="cm"),
-        ColumnDef("Jy_cm4", unit="cm⁴"),
-        ColumnDef("Wy_cm3", unit="cm³"),
-        ColumnDef("iy_cm", unit="cm"),
-        ColumnDef("Sx_cm3", unit="cm³"),
-        ColumnDef("sx_cm3", unit="cm³"),
-        ColumnDef("ey_cm", unit="cm"),
-        ColumnDef("XM", unit="cm"),
-    ],
-)
-
-# ══════════════════════════════════════════════
-# 14) Z-PURLINS
-# ══════════════════════════════════════════════
-
-# Z-Purlins (page 137)
-# Columns from header: A, B, C, D, t (mm), area (mm²), mass (kg/m)
-Z_PURLIN = TableSchema(
-    page_type="z_purlin",
-    name="High-Tensile Galvanised Z-Purlins",
-    pages=[137],
-    skip_header_rows=6,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_PURLIN_Z,
-    value_count=7,
-    columns=[
-        ColumnDef("depth_A_mm", unit="mm"),
-        ColumnDef("width_B_mm", unit="mm"),
-        ColumnDef("flange_C_mm", unit="mm"),
-        ColumnDef("lip_D_mm", unit="mm"),
-        ColumnDef("thickness_t_mm", unit="mm"),
-        ColumnDef("area_mm2", unit="mm²"),
-        ColumnDef("mass_kg_m", unit="kg/m"),
-    ],
-)
-
-# C-Purlins (page 139)
-# Columns from header: A, B, C, D, t (mm), mass (kg/m)
-C_PURLIN = TableSchema(
-    page_type="c_purlin",
-    name="High-Tensile Galvanised C-Purlins",
-    pages=[139],
-    skip_header_rows=6,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_PURLIN_C,
-    value_count=6,
-    columns=[
-        ColumnDef("depth_A_mm", unit="mm"),
-        ColumnDef("width_B_mm", unit="mm"),
-        ColumnDef("flange_C_mm", unit="mm"),
-        ColumnDef("lip_D_mm", unit="mm"),
-        ColumnDef("thickness_t_mm", unit="mm"),
-        ColumnDef("mass_kg_m", unit="kg/m"),
-    ],
-)
-
-# ══════════════════════════════════════════════
-# 15) ANGLES
-# ══════════════════════════════════════════════
-
-# Equal Angles Dimensions (pages 143-144)
-# Columns: t, M, r, A, Cx=Cy, Ix=Iy, ix=iy, iv, Zx=Zy
-EQUAL_ANGLE = TableSchema(
-    page_type="equal_angle",
-    name="Equal Angles Dimensions and Properties",
-    pages=[143, 144],
-    skip_header_rows=6,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_DIM,
-    value_count=9,
-    columns=[
-        ColumnDef("thickness_mm", unit="mm"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("fillet_radius_mm", unit="mm"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("Cx_cm", unit="cm"),
-        ColumnDef("I_cm4", unit="cm⁴"),
-        ColumnDef("i_cm", unit="cm"),
-        ColumnDef("iv_cm", unit="cm"),
-        ColumnDef("Z_cm3", unit="cm³"),
-    ],
-)
-
-# Unequal Angles Dimensions (pages 145, 147, 149)
-# Columns: t, M(kg/m), M(lb/ft), A(mm), B(mm), r1, r2, A_area, Cx, Cy
-UNEQUAL_ANGLE_DIM = TableSchema(
-    page_type="unequal_angle_dim",
-    name="Unequal Angles Dimensions",
-    pages=[145, 147, 149],
-    skip_header_rows=6,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_DIM,
-    value_count=10,
-    columns=[
-        ColumnDef("thickness_mm", unit="mm"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("weight_lb_ft", unit="lb/ft"),
-        ColumnDef("leg_A_mm", unit="mm"),
-        ColumnDef("leg_A_in", unit="in"),
-        ColumnDef("leg_B_mm", unit="mm"),
-        ColumnDef("leg_B_in", unit="in"),
-        ColumnDef("r1_mm", unit="mm"),
-        ColumnDef("r2_mm", unit="mm"),
-        ColumnDef("r2_in", unit="in"),
-    ],
-)
-
-# Unequal Angles Properties (pages 146, 148, 150)
-UNEQUAL_ANGLE_PROP = TableSchema(
-    page_type="unequal_angle_prop",
-    name="Unequal Angles Section Properties",
-    pages=[146, 148, 150],
-    skip_header_rows=6,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_DIM,
-    value_count=21,
-    columns=[
-        ColumnDef("Ix_cm4", unit="cm⁴"),
-        ColumnDef("Ix_in4", unit="in⁴"),
-        ColumnDef("Iy_cm4", unit="cm⁴"),
-        ColumnDef("Iy_in4", unit="in⁴"),
-        ColumnDef("Iu_cm4", unit="cm⁴"),
-        ColumnDef("Iu_in4", unit="in⁴"),
-        ColumnDef("Iv_cm4", unit="cm⁴"),
-        ColumnDef("Iv_in4", unit="in⁴"),
-        ColumnDef("ix_cm", unit="cm"),
-        ColumnDef("ix_in", unit="in"),
-        ColumnDef("iy_cm", unit="cm"),
-        ColumnDef("iy_in", unit="in"),
-        ColumnDef("iu_cm", unit="cm"),
-        ColumnDef("iu_in", unit="in"),
-        ColumnDef("iv_cm", unit="cm"),
-        ColumnDef("iv_in", unit="in"),
-        ColumnDef("tan_a"),
-        ColumnDef("Zx_cm3", unit="cm³"),
-        ColumnDef("Zx_in3", unit="in³"),
-        ColumnDef("Zy_cm3", unit="cm³"),
-        ColumnDef("Zy_in3", unit="in³"),
-    ],
-)
-
-# ══════════════════════════════════════════════
-# 16) BARS
-# ══════════════════════════════════════════════
-
-# Bulb Flats (page 155)
-BULB_FLAT = TableSchema(
-    page_type="bulb_flat",
-    name="Bulb Flats",
-    pages=[155],
-    skip_header_rows=8,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_NUMERIC,
-    value_count=4,
-    columns=[
-        ColumnDef("thickness_mm", unit="mm"),
-        ColumnDef("bulb_height_mm", unit="mm"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("mass_kg_m", unit="kg/m"),
-    ],
-)
-
-# Square Bars (page 156)
-SQUARE_BAR = TableSchema(
-    page_type="square_bar",
-    name="Square Bars",
-    pages=[156],
-    skip_header_rows=5,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_NUMERIC,
-    value_count=9,
-    columns=[
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("weight_lb_ft", unit="lb/ft"),
-        ColumnDef("side_mm", unit="mm"),
-        ColumnDef("side_in", unit="in"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("area_in2", unit="in²"),
-        ColumnDef("I_in4", unit="in⁴"),
-        ColumnDef("i_in", unit="in"),
-        ColumnDef("Z_in3", unit="in³"),
-    ],
-)
-
-# Deformed and Round Bars (page 157)
-DEFORMED_ROUND_BAR = TableSchema(
-    page_type="deformed_round_bar",
-    name="Deformed and Round Bars",
-    pages=[157],
-    skip_header_rows=7,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_NUMERIC,
-    value_count=2,
-    columns=[
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("area_cm2", unit="cm²"),
-    ],
-)
-
-# ══════════════════════════════════════════════
-# 17) PIPES
-# ══════════════════════════════════════════════
-
-# Carbon Steel Pipes for General Structural - Light AA (page 120)
-# Columns: nominal_in, nominal_mm, OD_min, OD_max, wall_in, wall_mm, weight_kg_m, weight_kg_ft, weight_lb_ft
-CS_PIPE_LIGHT_AA = TableSchema(
-    page_type="cs_pipe_light_aa",
-    name="Carbon Steel Pipes for General Structural Light AA",
-    pages=[120],
-    skip_header_rows=6,
-    footer_pattern=FOOTER_PATTERN_TOL,
-    section_pattern=SECTION_PATTERN_PIPE_NOM_FRAC,
-    value_count=8,
-    columns=[
-        ColumnDef("nominal_mm", unit="mm"),
-        ColumnDef("od_min_mm", unit="mm"),
-        ColumnDef("od_max_mm", unit="mm"),
-        ColumnDef("wall_in", unit="in"),
-        ColumnDef("wall_mm", unit="mm"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("weight_kg_ft", unit="kg/ft"),
-        ColumnDef("weight_lb_ft", unit="lb/ft"),
-    ],
-)
-
-# Carbon Steel Pipes for Ordinary Piping JIS G3452 SGP (page 122)
-CS_PIPE_SGP = TableSchema(
-    page_type="cs_pipe_sgp",
+LEAVES.append(LeafSchema(
+    leaf_id="carbon_steel_for_ordinary_piping",
     name="Carbon Steel Pipes for Ordinary Piping JIS G3452",
     pages=[122],
-    skip_header_rows=5,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_PIPE_NOM_DUAL,
-    value_count=8,
-    columns=[
-        ColumnDef("od_mm", unit="mm"),
-        ColumnDef("od_in", unit="in"),
-        ColumnDef("wall_mm", unit="mm"),
-        ColumnDef("wall_in", unit="in"),
-        ColumnDef("weight_lb_ft", unit="lb/ft"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("test_pressure_kg", unit="kg/cm²"),
-        ColumnDef("test_pressure_psi", unit="psi"),
+    page_groups=[
+        PageGroup(pages=[122], skip_header_rows=5,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_PIPE_NOM_DUAL,
+                  value_count=8,
+                  columns=[
+                      ColumnDef("od_mm", unit="mm"), ColumnDef("od_in", unit="in"),
+                      ColumnDef("wall_mm", unit="mm"), ColumnDef("wall_in", unit="in"),
+                      ColumnDef("weight_lb_ft", unit="lb/ft"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("test_pressure_kg", unit="kg/cm²"),
+                      ColumnDef("test_pressure_psi", unit="psi"),
+                  ]),
+    ]))
+
+LEAVES.append(skip("carbon_steel_for_machine_structural", [123, 124]))
+
+# ── CHANNELS (pages 126-135) ──
+LEAVES.append(skip("product_list_channels", [126]))
+LEAVES.append(skip("safe_loads_channels", [127]))
+
+LEAVES.append(LeafSchema(
+    leaf_id="plain_channels",
+    name="Plain Channels JIS G3350",
+    pages=[128],
+    page_groups=[
+        PageGroup(pages=[128], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_DIM,
+                  value_count=14,
+                  columns=[
+                      ColumnDef("weight_kg_m", unit="kg/m"), ColumnDef("thickness_mm", unit="mm"),
+                      ColumnDef("area_cm2", unit="cm²"),
+                      ColumnDef("Cx_cm", unit="cm"), ColumnDef("Cy_cm", unit="cm"),
+                      ColumnDef("Ix_cm4", unit="cm⁴"), ColumnDef("Iy_cm4", unit="cm⁴"),
+                      ColumnDef("Rx_cm", unit="cm"), ColumnDef("Ry_cm", unit="cm"),
+                      ColumnDef("Zx_cm3", unit="cm³"), ColumnDef("Zy_cm3", unit="cm³"),
+                      ColumnDef("Mx_kg_m", unit="kg/m"), ColumnDef("M", unit="cm"),
+                      ColumnDef("Q", unit="kg/m"),
+                  ]),
+    ]))
+
+LEAVES.append(LeafSchema(
+    leaf_id="lipped_channels",
+    name="Lipped Channels JIS G3350",
+    pages=[129],
+    page_groups=[
+        PageGroup(pages=[129], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_DIM,
+                  value_count=15,
+                  columns=[
+                      ColumnDef("weight_kg_m", unit="kg/m"), ColumnDef("thickness_mm", unit="mm"),
+                      ColumnDef("area_cm2", unit="cm²"),
+                      ColumnDef("Cx_cm", unit="cm"), ColumnDef("Cy_cm", unit="cm"),
+                      ColumnDef("Ix_cm4", unit="cm⁴"), ColumnDef("Iy_cm4", unit="cm⁴"),
+                      ColumnDef("Rx_cm", unit="cm"), ColumnDef("Ry_cm", unit="cm"),
+                      ColumnDef("Zx_cm3", unit="cm³"), ColumnDef("Zy_cm3", unit="cm³"),
+                      ColumnDef("Zx1_cm3", unit="cm³"),
+                      ColumnDef("Mx_kg_m", unit="kg/m"), ColumnDef("M", unit="cm"),
+                      ColumnDef("Q", unit="kg/m"),
+                  ]),
+    ]))
+
+LEAVES.append(LeafSchema(
+    leaf_id="din_1026_channels",
+    name="DIN 1026 Channels",
+    pages=[130],
+    page_groups=[
+        PageGroup(pages=[130], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_DIM,
+                  value_count=19,
+                  columns=[
+                      ColumnDef("height_h_mm", unit="mm"), ColumnDef("width_b_mm", unit="mm"),
+                      ColumnDef("web_s_mm", unit="mm"), ColumnDef("flange_t_mm", unit="mm"),
+                      ColumnDef("r1_mm", unit="mm"), ColumnDef("r2_mm", unit="mm"),
+                      ColumnDef("area_cm2", unit="cm²"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("surface_m2", unit="m²/m"),
+                      ColumnDef("Jx_cm4", unit="cm⁴"), ColumnDef("Wx_cm3", unit="cm³"),
+                      ColumnDef("ix_cm", unit="cm"),
+                      ColumnDef("Jy_cm4", unit="cm⁴"), ColumnDef("Wy_cm3", unit="cm³"),
+                      ColumnDef("iy_cm", unit="cm"),
+                      ColumnDef("Sx_cm3", unit="cm³"), ColumnDef("sx_cm3", unit="cm³"),
+                      ColumnDef("ey_cm", unit="cm"), ColumnDef("XM", unit="cm"),
+                  ]),
+    ]))
+
+LEAVES.append(LeafSchema(
+    leaf_id="u_channels",
+    name="U-Channels",
+    pages=[131, 132, 133, 134],
+    page_groups=[
+        PageGroup(pages=[131, 133], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_DIM_OPT_IMPERIAL,
+                  value_count=14,
+                  columns=[
+                      ColumnDef("weight_kg_m", unit="kg/m"), ColumnDef("weight_lb_ft", unit="lb/ft"),
+                      ColumnDef("depth_A_mm", unit="mm"), ColumnDef("depth_A_in", unit="in"),
+                      ColumnDef("width_B_mm", unit="mm"), ColumnDef("width_B_in", unit="in"),
+                      ColumnDef("flange_thickness_t1_mm", unit="mm"),
+                      ColumnDef("flange_thickness_t1_in", unit="in"),
+                      ColumnDef("web_thickness_t2_mm", unit="mm"),
+                      ColumnDef("web_thickness_t2_in", unit="in"),
+                      ColumnDef("corner_r1_mm", unit="mm"), ColumnDef("corner_r1_in", unit="in"),
+                      ColumnDef("r2_mm", unit="mm"), ColumnDef("r2_in", unit="in"),
+                  ]),
+        PageGroup(pages=[132, 134], skip_header_rows=8,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_DIM_OPT_IMPERIAL,
+                  value_count=16,
+                  columns=[
+                      ColumnDef("area_cm2", unit="cm²"), ColumnDef("area_in2", unit="in²"),
+                      ColumnDef("y_cm", unit="cm"), ColumnDef("y_in", unit="in"),
+                      ColumnDef("Ix_cm4", unit="cm⁴"), ColumnDef("Ix_in4", unit="in⁴"),
+                      ColumnDef("Iy_cm4", unit="cm⁴"), ColumnDef("Iy_in4", unit="in⁴"),
+                      ColumnDef("ix_cm", unit="cm"), ColumnDef("ix_in", unit="in"),
+                      ColumnDef("iy_cm", unit="cm"), ColumnDef("iy_in", unit="in"),
+                      ColumnDef("Zx_cm3", unit="cm³"), ColumnDef("Zx_in3", unit="in³"),
+                      ColumnDef("Zy_cm3", unit="cm³"), ColumnDef("Zy_in3", unit="in³"),
+                  ]),
+    ]))
+
+LEAVES.append(LeafSchema(
+    leaf_id="inch_series",
+    name="U-Channel Inch Series",
+    pages=[135],
+    page_groups=[
+        PageGroup(pages=[135], skip_header_rows=10,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_INCH_CHANNEL,
+                  value_count=12,
+                  columns=[
+                      ColumnDef("depth_H_in", unit="in"), ColumnDef("width_B_in", unit="in"),
+                      ColumnDef("flange_t1_in", unit="in"), ColumnDef("web_t2_in", unit="in"),
+                      ColumnDef("fillet_r_in", unit="in"), ColumnDef("area_in2", unit="in²"),
+                      ColumnDef("weight_kg_m", unit="kg/m"), ColumnDef("weight_kg_ft", unit="kg/ft"),
+                      ColumnDef("weight_lb_ft", unit="lb/ft"),
+                      ColumnDef("weight_20ft_kg", unit="kg"), ColumnDef("weight_30ft_kg", unit="kg"),
+                      ColumnDef("weight_40ft_kg", unit="kg"),
+                  ]),
+    ]))
+
+# ── PURLINS (pages 136-140) ──
+LEAVES.append(LeafSchema(
+    leaf_id="z_purlins_high_tensile_galvanised",
+    name="High-Tensile Galvanised Z-Purlins",
+    pages=[136, 137],
+    page_groups=[
+        PageGroup(pages=[137], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_PURLIN_Z,
+                  value_count=7,
+                  columns=[
+                      ColumnDef("depth_A_mm", unit="mm"), ColumnDef("width_B_mm", unit="mm"),
+                      ColumnDef("flange_C_mm", unit="mm"), ColumnDef("lip_D_mm", unit="mm"),
+                      ColumnDef("thickness_t_mm", unit="mm"),
+                      ColumnDef("area_mm2", unit="mm²"), ColumnDef("mass_kg_m", unit="kg/m"),
+                  ]),
+    ]))
+
+LEAVES.append(LeafSchema(
+    leaf_id="c_purlins_high_tensile_galvanised",
+    name="High-Tensile Galvanised C-Purlins",
+    pages=[138, 139],
+    page_groups=[
+        PageGroup(pages=[139], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_PURLIN_C,
+                  value_count=6,
+                  columns=[
+                      ColumnDef("depth_A_mm", unit="mm"), ColumnDef("width_B_mm", unit="mm"),
+                      ColumnDef("flange_C_mm", unit="mm"), ColumnDef("lip_D_mm", unit="mm"),
+                      ColumnDef("thickness_t_mm", unit="mm"), ColumnDef("mass_kg_m", unit="kg/m"),
+                  ]),
+    ]))
+
+LEAVES.append(skip("purlin_selection_tables", [140]))
+
+# ── ANGLES (pages 142-151) ──
+LEAVES.append(skip("product_list_angles", [142]))
+LEAVES.append(skip("inverted_angles", [151]))
+
+LEAVES.append(LeafSchema(
+    leaf_id="equal_angles",
+    name="Equal Angles",
+    pages=[143, 144],
+    page_groups=[
+        PageGroup(pages=[143, 144], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_DIM,
+                  value_count=9,
+                  columns=[
+                      ColumnDef("thickness_mm", unit="mm"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("fillet_radius_mm", unit="mm"),
+                      ColumnDef("area_cm2", unit="cm²"), ColumnDef("Cx_cm", unit="cm"),
+                      ColumnDef("I_cm4", unit="cm⁴"), ColumnDef("i_cm", unit="cm"),
+                      ColumnDef("iv_cm", unit="cm"), ColumnDef("Z_cm3", unit="cm³"),
+                  ]),
+    ]))
+
+LEAVES.append(LeafSchema(
+    leaf_id="unequal_angles",
+    name="Unequal Angles",
+    pages=[145, 146, 147, 148, 149, 150],
+    page_groups=[
+        PageGroup(pages=[145, 147, 149], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_DIM,
+                  value_count=10,
+                  columns=[
+                      ColumnDef("thickness_mm", unit="mm"), ColumnDef("weight_kg_m", unit="kg/m"),
+                      ColumnDef("weight_lb_ft", unit="lb/ft"),
+                      ColumnDef("leg_A_mm", unit="mm"), ColumnDef("leg_A_in", unit="in"),
+                      ColumnDef("leg_B_mm", unit="mm"), ColumnDef("leg_B_in", unit="in"),
+                      ColumnDef("r1_mm", unit="mm"), ColumnDef("r2_mm", unit="mm"),
+                      ColumnDef("r2_in", unit="in"),
+                  ]),
+        PageGroup(pages=[146, 148, 150], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_DIM,
+                  value_count=21,
+                  columns=[
+                      ColumnDef("Ix_cm4", unit="cm⁴"), ColumnDef("Ix_in4", unit="in⁴"),
+                      ColumnDef("Iy_cm4", unit="cm⁴"), ColumnDef("Iy_in4", unit="in⁴"),
+                      ColumnDef("Iu_cm4", unit="cm⁴"), ColumnDef("Iu_in4", unit="in⁴"),
+                      ColumnDef("Iv_cm4", unit="cm⁴"), ColumnDef("Iv_in4", unit="in⁴"),
+                      ColumnDef("ix_cm", unit="cm"), ColumnDef("ix_in", unit="in"),
+                      ColumnDef("iy_cm", unit="cm"), ColumnDef("iy_in", unit="in"),
+                      ColumnDef("iu_cm", unit="cm"), ColumnDef("iu_in", unit="in"),
+                      ColumnDef("iv_cm", unit="cm"), ColumnDef("iv_in", unit="in"),
+                      ColumnDef("tan_a"),
+                      ColumnDef("Zx_cm3", unit="cm³"), ColumnDef("Zx_in3", unit="in³"),
+                      ColumnDef("Zy_cm3", unit="cm³"), ColumnDef("Zy_in3", unit="in³"),
+                  ]),
+    ]))
+
+# ── BARS (pages 152-157) ──
+LEAVES.append(skip("product_list_bars", [152]))
+LEAVES.append(LeafSchema(
+    leaf_id="flat_bars",
+    name="Flat Bars",
+    pages=[153, 154],
+    page_groups=[
+        PageGroup(pages=[153, 154], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=r"^(\d+\.?\d*\s+\d+\.?\d*)",
+                  value_count=6,
+                  columns=[
+                      ColumnDef("left_M_kg_m", unit="kg/m"),
+                      ColumnDef("left_A_cm2", unit="cm²"),
+                      ColumnDef("right_thickness_mm", unit="mm"),
+                      ColumnDef("right_width_mm", unit="mm"),
+                      ColumnDef("right_M_kg_m", unit="kg/m"),
+                      ColumnDef("right_A_cm2", unit="cm²"),
+                  ]),
+    ]))
+
+LEAVES.append(LeafSchema(
+    leaf_id="bulb_flats",
+    name="Bulb Flats",
+    pages=[155],
+    page_groups=[
+        PageGroup(pages=[155], skip_header_rows=8,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_NUMERIC,
+                  value_count=4,
+                  columns=[
+                      ColumnDef("thickness_mm", unit="mm"), ColumnDef("bulb_height_mm", unit="mm"),
+                      ColumnDef("area_cm2", unit="cm²"), ColumnDef("mass_kg_m", unit="kg/m"),
+                  ]),
+    ]))
+
+LEAVES.append(LeafSchema(
+    leaf_id="square_deformed_and_round_bars",
+    name="Square, Deformed and Round Bars",
+    pages=[156, 157],
+    page_groups=[
+        PageGroup(pages=[156], skip_header_rows=5,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_NUMERIC,
+                  value_count=9,
+                  columns=[
+                      ColumnDef("weight_kg_m", unit="kg/m"), ColumnDef("weight_lb_ft", unit="lb/ft"),
+                      ColumnDef("side_mm", unit="mm"), ColumnDef("side_in", unit="in"),
+                      ColumnDef("area_cm2", unit="cm²"), ColumnDef("area_in2", unit="in²"),
+                      ColumnDef("I_in4", unit="in⁴"), ColumnDef("i_in", unit="in"),
+                      ColumnDef("Z_in3", unit="in³"),
+                  ]),
+        PageGroup(pages=[157], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_NUMERIC,
+                  value_count=2,
+                  columns=[
+                      ColumnDef("weight_kg_m", unit="kg/m"), ColumnDef("area_cm2", unit="cm²"),
+                  ]),
+    ]))
+
+# ── PLATES (pages 158-176) ──
+LEAVES.append(skip("product_list_plates", [158]))
+LEAVES.append(skip("specifications_plates", list(range(159, 168))))
+LEAVES.append(skip("weight_tables_plates", [168, 169]))
+LEAVES.append(skip("technical_reference_plates", [170]))
+LEAVES.append(LeafSchema(
+    leaf_id="chequered_plates",
+    name="Chequered (Floor) Plates Weight Table",
+    pages=[171],
+    page_groups=[
+        PageGroup(pages=[171], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=SECTION_PATTERN_NUMERIC,
+                  value_count=9, parser="token",
+                  columns=[
+                      ColumnDef("unit_weight_kg_m2", unit="kg/m²"),
+                      ColumnDef("wt_914x1829"),
+                      ColumnDef("wt_914x3658"),
+                      ColumnDef("wt_1219x2438"),
+                      ColumnDef("wt_1219x3048"),
+                      ColumnDef("wt_1219x4877"),
+                      ColumnDef("wt_1219x6096"),
+                      ColumnDef("wt_1524x3048"),
+                      ColumnDef("wt_1524x6096"),
+                  ]),
+        PageGroup(pages=[171], skip_header_rows=19,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=SECTION_PATTERN_NUMERIC,
+                  value_count=9, parser="token",
+                  columns=[
+                      ColumnDef("unit_weight_lb_ft2", unit="lb/ft²"),
+                      ColumnDef("wt_3x6_ft"),
+                      ColumnDef("wt_3x12_ft"),
+                      ColumnDef("wt_4x8_ft"),
+                      ColumnDef("wt_4x10_ft"),
+                      ColumnDef("wt_4x16_ft"),
+                      ColumnDef("wt_4x20_ft"),
+                      ColumnDef("wt_5x10_ft"),
+                      ColumnDef("wt_5x20_ft"),
+                  ]),
     ],
-)
-
-# Carbon Steel Pipes for General Structural JIS G3444 (page 125)
-CS_PIPE_STK = TableSchema(
-    page_type="cs_pipe_stk",
-    name="Carbon Steel Pipes for General Structural JIS G3444",
-    pages=[125],
-    skip_header_rows=7,
-    footer_pattern=FOOTER_PATTERN_STK,
-    section_pattern=SECTION_PATTERN_STK_OD,
-    value_count=6,
-    columns=[
-        ColumnDef("wall_thickness_mm", unit="mm"),
-        ColumnDef("weight_kg_m", unit="kg/m"),
-        ColumnDef("area_cm2", unit="cm²"),
-        ColumnDef("I_cm4", unit="cm⁴"),
-        ColumnDef("Z_cm3", unit="cm³"),
-        ColumnDef("r_cm", unit="cm"),
+))
+LEAVES.append(skip("cold_rolled_coils_and_sheets", [172, 173]))
+LEAVES.append(skip("electrolytic_galvanised", [174]))
+LEAVES.append(skip("hot_dip_galvanised", [175]))
+LEAVES.append(LeafSchema(
+    leaf_id="galvanised_steel_sheets_dimensions",
+    name="Galvanised Steel Sheets Dimensions JIS G3302",
+    pages=[176],
+    page_groups=[
+        PageGroup(pages=[176], skip_header_rows=9, footer_pattern=FOOTER_PATTERN,
+                  section_pattern=r"^([\d.]+)",
+                  value_count=9, parser="token",
+                  columns=[
+                      ColumnDef("z18_kg_pc", unit="kg/pc"),
+                      ColumnDef("z18_ib_pc", unit="lb/pc"),
+                      ColumnDef("z18_pcs_mt", unit="pcs/mt"),
+                      ColumnDef("z22_kg_pc", unit="kg/pc"),
+                      ColumnDef("z22_ib_pc", unit="lb/pc"),
+                      ColumnDef("z22_pcs_mt", unit="pcs/mt"),
+                      ColumnDef("z27_kg_pc", unit="kg/pc"),
+                      ColumnDef("z27_ib_pc", unit="lb/pc"),
+                      ColumnDef("z27_pcs_mt", unit="pcs/mt"),
+                  ]),
     ],
-)
+))
 
-# ══════════════════════════════════════════════
-# 18) APPENDIX
-# ══════════════════════════════════════════════
+# ── GRATINGS / EXPANDED METAL (pages 177-179) ──
+LEAVES.append(skip("galvanised_serrated_gratings", [177]))
+LEAVES.append(skip("expanded_metal", [178, 179]))
 
-# Gauge Table (page 265)
-GAUGE_TABLE = TableSchema(
-    page_type="gauge_table",
+# ── WROUGHT STEEL FITTINGS (pages 180-187) ──
+LEAVES.append(skip("product_list_wrought_fittings", [180]))
+# Fittings pages: skip for now (complex layouts)
+for leaf_id, leaf_pages in [
+    ("fitting_ends_and_45_degree_elbows", [181]),
+    ("90_degree_elbows_wrought", [182]),
+    ("180_degree_returns_wrought", [183]),
+    ("reducers_wrought", [184, 185]),
+    ("tees_wrought", [186]),
+    ("reducing_fittings_wrought", [187]),
+]:
+    LEAVES.append(skip(leaf_id, leaf_pages))
+
+# ── FLANGES (pages 188-205) ──
+# All flange pages: skip for now (complex fraction-based layouts)
+for leaf_id, leaf_pages in [
+    ("jis_5k", [188]), ("jis_10k", [188]),
+    ("ansi_150lb_blind", [189]), ("ansi_300lb_blind", [189]),
+    ("ansi_150lb_slip_on", [190]), ("ansi_300lb_slip_on", [190]),
+    ("ansi_150lb_welding_neck", [191]), ("ansi_300lb_welding_neck", [191]),
+    ("ansi_class_600", [192]), ("ansi_class_900", [192]), ("ansi_class_1500", [193]),
+    ("bs_slip_on_pn_6", [194]), ("bs_slip_on_pn_10", [194]),
+    ("bs_slip_on_pn_16", [195]), ("bs_slip_on_pn_25", [195]),
+    ("bs_slip_on_pn_40", [196]), ("bs_slip_on_pn_64", [196]),
+    ("bs_slip_on_pn_100", [197]), ("bs_slip_on_pn_160", [197]),
+    ("bs_slip_on_pn_250", [198]),
+    ("din_welding_neck_pn_16", [199]), ("din_welding_neck_pn_40", [200]),
+    ("bs10_table_a", [201]), ("bs10_table_d", [201]),
+    ("bs10_table_e", [202]), ("bs10_table_f", [202]),
+    ("bs10_table_h", [203]), ("bs10_table_j", [203]),
+    ("bs10_table_k", [204]), ("bs10_table_r", [204]),
+    ("bs10_table_s", [205]), ("bs10_table_t", [205]),
+]:
+    LEAVES.append(skip(leaf_id, leaf_pages))
+
+# ── STAINLESS STEEL PRODUCTS (pages 206-246) ──
+LEAVES.append(skip("general_information", [206, 207, 208, 209]))
+LEAVES.append(skip("coils_sheets", [210]))
+LEAVES.append(skip("sheets_plates", [211, 212, 213, 214]))
+LEAVES.append(LeafSchema(
+    leaf_id="sheets_plates_weights",
+    name="Stainless Steel Sheets and Plates Weights",
+    pages=[215],
+    page_groups=[
+        PageGroup(pages=[215], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=r"^(\d+\.?\d*)",
+                  value_count=8,
+                  columns=[
+                      ColumnDef("weight_304_4x8_kg_pc", unit="kg/pc"),
+                      ColumnDef("pcs_mt_304_4x8", unit="pcs/mt"),
+                      ColumnDef("weight_316_4x8_kg_pc", unit="kg/pc"),
+                      ColumnDef("pcs_mt_316_4x8", unit="pcs/mt"),
+                      ColumnDef("weight_304_5x10_kg_pc", unit="kg/pc"),
+                      ColumnDef("pcs_mt_304_5x10", unit="pcs/mt"),
+                      ColumnDef("weight_316_5x10_kg_pc", unit="kg/pc"),
+                      ColumnDef("pcs_mt_316_5x10", unit="pcs/mt"),
+                  ]),
+    ]))
+LEAVES.append(skip("angles_stainless", [216, 217, 218]))
+LEAVES.append(skip("flats_stainless", [219]))
+SECTION_PATTERN_UNS = r"^([A-Za-z0-9\s()/.·°’‘-]+)"
+
+LEAVES.append(LeafSchema(
+    leaf_id="round_bars_stainless",
+    name="Stainless Steel Round Bars",
+    pages=[220, 221, 222],
+    page_groups=[
+        PageGroup(pages=[220, 221, 222], skip_header_rows=5,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=r"^(\d+\s*\([A-Z]\d+\))",
+                  value_count=12, parser="two_row", join_remaining=True,
+                  columns=[
+                      ColumnDef("JIS"), ColumnDef("BS"), ColumnDef("DIN"),
+                      ColumnDef("C_percent"), ColumnDef("Mn_percent"),
+                      ColumnDef("P_percent"), ColumnDef("S_percent"),
+                      ColumnDef("Si_percent"),
+                      ColumnDef("Cr_percent"), ColumnDef("Ni_percent"),
+                      ColumnDef("Mo_percent"), ColumnDef("other_elements"),
+                  ]),
+    ]))
+LEAVES.append(skip("hexagon_square_bars_stainless", [224]))
+LEAVES.append(LeafSchema(
+    leaf_id="welded_channels_stainless",
+    name="Stainless Steel Welded Channels",
+    pages=[225],
+    page_groups=[
+        PageGroup(pages=[225], skip_header_rows=5,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_DIM_OPT_IMPERIAL,
+                  value_count=4,
+                  columns=[
+                      ColumnDef("tolerance_d_in", unit="in"), ColumnDef("tolerance_bf_in", unit="in"),
+                      ColumnDef("weight_304_lb_ft", unit="lb/ft"),
+                      ColumnDef("weight_316_lb_ft", unit="lb/ft"),
+                  ]),
+    ]))
+LEAVES.append(skip("welded_tubings_stainless", [226, 227, 228, 229]))
+
+# Stainless steel pipes
+LEAVES.append(skip("pipes_stainless", [230, 231, 232, 233, 234]))
+
+# Stainless steel fittings
+for leaf_id, leaf_pages in [
+    ("elbows_90_long_radius", [236]),
+    ("elbows_90_short_radius", [237]),
+    ("returns_180_long_radius", [238]),
+    ("straight_tees", [239]),
+    ("reducing_outlet_tees", [240, 241]),
+    ("lap_joint_stub_ends", [242]),
+    ("reducers_stainless", [243, 244, 245]),
+    ("caps_stainless", [246]),
+]:
+    LEAVES.append(skip(leaf_id, leaf_pages))
+
+# ── MACHINERY STEEL (pages 248-252) ──
+LEAVES.append(skip("product_list_machinery", [248]))
+LEAVES.append(LeafSchema(
+    leaf_id="carbon_steel_machinery",
+    name="Carbon Steel Machinery KS D3752, JIS G4051",
+    pages=[249],
+    page_groups=[
+        PageGroup(pages=[249], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=r"^([A-Z]\w+)", parser="machinery",
+                  columns=[
+                      ColumnDef("c", type="str"), ColumnDef("si", type="str"),
+                      ColumnDef("mn", type="str"), ColumnDef("p", type="str"),
+                      ColumnDef("s", type="str"),
+                      ColumnDef("yp", type="str"), ColumnDef("ts", type="str"),
+                      ColumnDef("el", type="str"), ColumnDef("ra", type="str"),
+                      ColumnDef("impact", type="str"), ColumnDef("hardness", type="str"),
+                      ColumnDef("aisi", type="str"),
+                  ]),
+    ],
+))
+LEAVES.append(LeafSchema(
+    leaf_id="chromium_and_crmo_steels",
+    name="Alloy Steel Chromium & CrMo KS D3707 D3711, JIS G4104 G4105",
+    pages=[250],
+    page_groups=[
+        PageGroup(pages=[250], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=r"^([A-Z]\w+)", parser="machinery",
+                  columns=[
+                      ColumnDef("c", type="str"), ColumnDef("si", type="str"),
+                      ColumnDef("mn", type="str"), ColumnDef("p", type="str"),
+                      ColumnDef("s", type="str"), ColumnDef("cr", type="str"),
+                      ColumnDef("mo", type="str"),
+                      ColumnDef("yp", type="str"), ColumnDef("ts", type="str"),
+                      ColumnDef("el", type="str"), ColumnDef("ra", type="str"),
+                      ColumnDef("impact", type="str"), ColumnDef("hardness", type="str"),
+                      ColumnDef("aisi", type="str"),
+                  ]),
+    ],
+))
+LEAVES.append(LeafSchema(
+    leaf_id="nickel_chromium_steels",
+    name="Alloy Steel NiCr KS D3708 D3709, JIS G4102 G4103",
+    pages=[251],
+    page_groups=[
+        PageGroup(pages=[251], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=r"^([A-Z]\w+)", parser="machinery",
+                  columns=[
+                      ColumnDef("c", type="str"), ColumnDef("si", type="str"),
+                      ColumnDef("mn", type="str"), ColumnDef("p", type="str"),
+                      ColumnDef("s", type="str"), ColumnDef("ni", type="str"),
+                      ColumnDef("cr", type="str"), ColumnDef("mo", type="str"),
+                      ColumnDef("yp", type="str"), ColumnDef("ts", type="str"),
+                      ColumnDef("el", type="str"), ColumnDef("ra", type="str"),
+                      ColumnDef("impact", type="str"), ColumnDef("hardness", type="str"),
+                      ColumnDef("aisi", type="str"),
+                  ]),
+    ],
+))
+LEAVES.append(LeafSchema(
+    leaf_id="cold_finished_free_cutting_steel",
+    name="Free Cutting Steel KS D3567, JIS G4804",
+    pages=[252],
+    page_groups=[
+        PageGroup(pages=[252], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=r"^([A-Z]\w+)", parser="machinery",
+                  columns=[
+                      ColumnDef("c", type="str"), ColumnDef("si", type="str"),
+                      ColumnDef("mn", type="str"), ColumnDef("p", type="str"),
+                      ColumnDef("s", type="str"), ColumnDef("pb", type="str"),
+                      ColumnDef("aisi", type="str"),
+                  ]),
+    ],
+))
+
+# ── NON-FERROUS METALS (pages 254-262) ──
+LEAVES.append(skip("product_list_non_ferrous", [254]))
+LEAVES.append(LeafSchema(
+    leaf_id="copper_round_hex_square_bars",
+    name="Copper Round, Hexagon & Square Bars Weights",
+    pages=[255],
+    page_groups=[
+        PageGroup(pages=[255], skip_header_rows=5,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=r"^([\d]+(?:/\d+)?)\s*",
+                  value_count=9, parser="token",
+                  merge_fractions=True,
+                  columns=[
+                      ColumnDef("round_kg_ft", unit="kg/ft"),
+                      ColumnDef("round_lb_ft", unit="lb/ft"),
+                      ColumnDef("round_kati_ft", unit="kati/ft"),
+                      ColumnDef("hex_kg_ft", unit="kg/ft"),
+                      ColumnDef("hex_lb_ft", unit="lb/ft"),
+                      ColumnDef("hex_kati_ft", unit="kati/ft"),
+                      ColumnDef("square_kg_ft", unit="kg/ft"),
+                      ColumnDef("square_lb_ft", unit="lb/ft"),
+                      ColumnDef("square_kati_ft", unit="kati/ft"),
+                  ]),
+    ],
+))
+LEAVES.append(skip("copper_flat_bars", [256]))
+LEAVES.append(LeafSchema(
+    leaf_id="brass_round_hex_square_bars",
+    name="Brass Round, Hexagon & Square Bars Weights",
+    pages=[257],
+    page_groups=[
+        PageGroup(pages=[257], skip_header_rows=5,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=r"^([\d]+(?:/\d+)?)\s*",
+                  value_count=9, parser="token",
+                  merge_fractions=True,
+                  columns=[
+                      ColumnDef("round_kg_ft", unit="kg/ft"),
+                      ColumnDef("round_lb_ft", unit="lb/ft"),
+                      ColumnDef("round_kati_ft", unit="kati/ft"),
+                      ColumnDef("hex_kg_ft", unit="kg/ft"),
+                      ColumnDef("hex_lb_ft", unit="lb/ft"),
+                      ColumnDef("hex_kati_ft", unit="kati/ft"),
+                      ColumnDef("square_kg_ft", unit="kg/ft"),
+                      ColumnDef("square_lb_ft", unit="lb/ft"),
+                      ColumnDef("square_kati_ft", unit="kati/ft"),
+                  ]),
+    ],
+))
+LEAVES.append(skip("brass_flat_bars", [258]))
+LEAVES.append(LeafSchema(
+    leaf_id="brass_sheets",
+    name="Brass Sheets",
+    pages=[259],
+    page_groups=[
+        PageGroup(pages=[259], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_NUMERIC,
+                  value_count=4,
+                  columns=[
+                      ColumnDef("thickness_mm", type="float", unit="mm"),
+                      ColumnDef("width_in", unit="in"), ColumnDef("length_in", unit="in"),
+                      ColumnDef("weight_kg", unit="kg"),
+                  ]),
+    ]))
+LEAVES.append(skip("bronze_continuous_casting_info", [260]))
+LEAVES.append(skip("bronze_tube_stock_sizes", [261]))
+LEAVES.append(skip("bronze_centrifugal_cast", [262]))
+
+# ── APPENDIX ──
+LEAVES.append(LeafSchema(
+    leaf_id="gauge_table",
     name="Gauge Table SWG BWG BG BS USG",
     pages=[265],
-    skip_header_rows=4,
-    footer_pattern=FOOTER_PATTERN,
-    section_pattern=SECTION_PATTERN_NUMERIC,
-    value_count=4,
-    columns=[
-        ColumnDef("swg_mm", unit="mm"),
-        ColumnDef("bwg_mm", unit="mm"),
-        ColumnDef("bg_mm", unit="mm"),
-        ColumnDef("usg_mm", unit="mm"),
-    ],
-)
+    page_groups=[
+        PageGroup(pages=[265], skip_header_rows=4,
+                  footer_pattern=FOOTER_PATTERN, section_pattern=SECTION_PATTERN_NUMERIC,
+                  value_count=4,
+                  columns=[
+                      ColumnDef("swg_mm", unit="mm"), ColumnDef("bwg_mm", unit="mm"),
+                      ColumnDef("bg_mm", unit="mm"), ColumnDef("usg_mm", unit="mm"),
+                  ]),
+    ]))
 
 
-ALL_SCHEMAS = [
-    BEAM_DIMENSIONS,
-    BEAM_INERTIA,
-    BEAM_METRIC_DIMENSIONS,
-    BEAM_METRIC_INERTIA,
-    LIGHT_BEAM_DIMENSIONS,
-    LIGHT_BEAM_INERTIA,
-    LIGHT_BEAM_METRIC,
-    BEARING_PILE_DIMENSIONS,
-    BEARING_PILE_INERTIA,
-    FRODINGHAM_PILE,
-    LARSSEN_PILE,
-    KSP_U_PILE,
-    KSP_U_PILE_IMP,
-    Z_TYPE_PILE,
-    CF_SQUARE_METRIC,
-    CF_RECT_METRIC,
-    CF_SQUARE_IMPERIAL,
-    CF_RECT_IMPERIAL,
-    HF_SQUARE,
-    HF_RECT,
-    HF_CIRCULAR,
-    PLAIN_CHANNEL,
-    LIPPED_CHANNEL,
-    U_CHANNEL_DIM,
-    U_CHANNEL_PROP,
-    U_CHANNEL_INCH,
-    DIN_CHANNEL,
-    Z_PURLIN,
-    C_PURLIN,
-    EQUAL_ANGLE,
-    UNEQUAL_ANGLE_DIM,
-    UNEQUAL_ANGLE_PROP,
-    BULB_FLAT,
-    SQUARE_BAR,
-    DEFORMED_ROUND_BAR,
-    CS_PIPE_LIGHT_AA,
-    CS_PIPE_SGP,
-    CS_PIPE_STK,
-    GAUGE_TABLE,
-]
+# ══════════════════════════════════════════════════════════════════════════════
+# LOOKUP FUNCTIONS
+# ══════════════════════════════════════════════════════════════════════════════
+
+LEAF_SCHEMAS_BY_ID = {leaf.leaf_id: leaf for leaf in LEAVES}
+
+ALL_LEAF_IDS = sorted(LEAF_SCHEMAS_BY_ID.keys())
+
+
+def get_leaf_by_id(leaf_id):
+    return LEAF_SCHEMAS_BY_ID.get(leaf_id)
+
+
+def get_leaf_ids_for_page(page_num):
+    matches = []
+    for leaf in LEAVES:
+        if page_num in leaf.pages:
+            matches.append(leaf.leaf_id)
+    return matches
 
 
 def get_schema_for_page(page_num):
-    for s in ALL_SCHEMAS:
-        if page_num in s.pages:
-            return s
+    """Return first matching leaf schema for a page (backward compat)."""
+    for leaf in LEAVES:
+        if page_num in leaf.pages and leaf.page_groups:
+            return leaf
+    return None
+
+
+def get_page_group_for_page(leaf, page_num):
+    for pg in leaf.page_groups:
+        if page_num in pg.pages:
+            return pg
     return None
