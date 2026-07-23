@@ -30,6 +30,7 @@ class PageGroup:
     parse_fractions: bool = False  # True: convert "1/2" to 0.5 in numeric fields
     grid_cols: int = 0  # number of column headers in a grid (for page 33-34 style tables)
     grid_header_row: int = 0  # row index (within data rows) containing column headers
+    section_suffix: str = ""  # appended to section keys to avoid cross-page collisions
 
 
 LEAF_DATA_TABLE = "table"
@@ -976,7 +977,46 @@ LEAVES.append(LeafSchema(
 # ── PLATES (pages 158-176) ──
 LEAVES.append(skip("product_list_plates", [158]))
 LEAVES.append(skip("specifications_plates", list(range(159, 168))))
-LEAVES.append(skip("weight_tables_plates", [168, 169]))
+LEAVES.append(LeafSchema(
+    leaf_id="weight_tables_plates",
+    name="Steel Plates Weight Table — Imperial and Metric",
+    pages=[168, 169],
+    page_groups=[
+        PageGroup(pages=[168], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN, merge_fractions=True,
+                  section_pattern=r"^(\d+(?:/\d+)?)", value_count=10,
+                  section_suffix="in",
+                  columns=[
+                      ColumnDef("thickness_mm", unit="mm"),
+                      ColumnDef("unit_weight_kg_ft2", unit="kg/ft²"),
+                      ColumnDef("wt_4x8"),
+                      ColumnDef("wt_5x10"),
+                      ColumnDef("wt_5x20"),
+                      ColumnDef("wt_5x30"),
+                      ColumnDef("wt_6x20"),
+                      ColumnDef("wt_6x24"),
+                      ColumnDef("wt_6x30"),
+                      ColumnDef("wt_8x30"),
+                  ]),
+        PageGroup(pages=[169], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=r"^(\d+(?:\.\d+)?)", value_count=12,
+                  columns=[
+                      ColumnDef("unit_weight_kg", unit="kg"),
+                      ColumnDef("wt_3x6"),
+                      ColumnDef("wt_4x8"),
+                      ColumnDef("wt_4x10"),
+                      ColumnDef("wt_4x16"),
+                      ColumnDef("wt_4x20"),
+                      ColumnDef("wt_5x10"),
+                      ColumnDef("wt_5x20"),
+                      ColumnDef("wt_5x30"),
+                      ColumnDef("wt_5x40"),
+                      ColumnDef("wt_6x30"),
+                      ColumnDef("wt_6x40"),
+                  ]),
+    ],
+))
 LEAVES.append(skip("technical_reference_plates", [170]))
 LEAVES.append(LeafSchema(
     leaf_id="chequered_plates",
@@ -1016,7 +1056,18 @@ LEAVES.append(LeafSchema(
     ],
 ))
 LEAVES.append(skip("cold_rolled_coils_and_sheets", [172, 173]))
-LEAVES.append(skip("electrolytic_galvanised", [174]))
+LEAVES.append(LeafSchema(
+    leaf_id="electrolytic_galvanised",
+    name="Electrolytic Galvanised Coils and Sheets — Weight Table",
+    pages=[174],
+    page_groups=[
+        PageGroup(pages=[174], skip_header_rows=17,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=r"^([\d.]+)", value_count=1,
+                  parser="paired",
+                  columns=[ColumnDef("weight_kg_sht")]),
+    ],
+))
 LEAVES.append(skip("hot_dip_galvanised", [175]))
 LEAVES.append(LeafSchema(
     leaf_id="galvanised_steel_sheets_dimensions",
@@ -1058,11 +1109,124 @@ for leaf_id, leaf_pages in [
     LEAVES.append(skip(leaf_id, leaf_pages))
 
 # ── FLANGES (pages 188-205) ──
-# All flange pages: skip for now (complex fraction-based layouts)
+# JIS 5K and 10K share page 188 (5K data rows 7-27, 10K data rows 33-53)
+SECTION_FLANGE_NOM = r"^(\d+(?:-\d+/\d+)?(?:/\d+)?)"
+LEAVES.append(LeafSchema(
+    leaf_id="jis_5k", name="JIS 5K Slip-On Flanges (JIS B2220)",
+    pages=[188],
+    page_groups=[PageGroup(pages=[188], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=SECTION_FLANGE_NOM,
+                  value_count=10, max_data_rows=21,
+                  columns=[
+                      ColumnDef("nominal_mm", type="float", unit="mm"),
+                      ColumnDef("pipe_od_mm", type="float", unit="mm"),
+                      ColumnDef("pipe_id_mm", type="float", unit="mm"),
+                      ColumnDef("flange_od_mm", type="float", unit="mm"),
+                      ColumnDef("thickness_mm", type="float", unit="mm"),
+                      ColumnDef("bolt_circle_mm", type="float", unit="mm"),
+                      ColumnDef("hole_count", type="int"),
+                      ColumnDef("hole_dia_mm", type="float", unit="mm"),
+                      ColumnDef("bolt_size", type="string"),
+                      ColumnDef("weight_kg", type="float", unit="kg"),
+                  ])],
+))
+LEAVES.append(LeafSchema(
+    leaf_id="jis_10k", name="JIS 10K Slip-On Flanges (JIS B2220)",
+    pages=[188],
+    page_groups=[PageGroup(pages=[188], skip_header_rows=33,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=SECTION_FLANGE_NOM,
+                  value_count=10,
+                  columns=[
+                      ColumnDef("nominal_mm", type="float", unit="mm"),
+                      ColumnDef("pipe_od_mm", type="float", unit="mm"),
+                      ColumnDef("pipe_id_mm", type="float", unit="mm"),
+                      ColumnDef("flange_od_mm", type="float", unit="mm"),
+                      ColumnDef("thickness_mm", type="float", unit="mm"),
+                      ColumnDef("bolt_circle_mm", type="float", unit="mm"),
+                      ColumnDef("hole_count", type="int"),
+                      ColumnDef("hole_dia_mm", type="float", unit="mm"),
+                      ColumnDef("bolt_size", type="string"),
+                      ColumnDef("weight_kg", type="float", unit="kg"),
+                  ])],
+))
+LEAVES.append(LeafSchema(
+    leaf_id="ansi_150lb_blind", name="ANSI 150LB Blind Flanges (ANSI B16.5)",
+    pages=[189],
+    page_groups=[PageGroup(pages=[189], skip_header_rows=7,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=SECTION_FLANGE_NOM,
+                  value_count=7, max_data_rows=20,
+                  columns=[
+                      ColumnDef("flange_od", type="float", unit="in"),
+                      ColumnDef("thickness", type="float", unit="in"),
+                      ColumnDef("raised_face_dia", type="float", unit="in"),
+                      ColumnDef("hole_count", type="int"),
+                      ColumnDef("bolt_dia", type="float", unit="in"),
+                      ColumnDef("bolt_circle_dia", type="float", unit="in"),
+                      ColumnDef("weight_kg", type="float", unit="kg"),
+                  ])],
+))
+LEAVES.append(LeafSchema(
+    leaf_id="ansi_300lb_blind", name="ANSI 300LB Blind Flanges (ANSI B16.5)",
+    pages=[189],
+    page_groups=[PageGroup(pages=[189], skip_header_rows=32,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=SECTION_FLANGE_NOM,
+                  value_count=7,
+                  columns=[
+                      ColumnDef("flange_od", type="float", unit="in"),
+                      ColumnDef("thickness", type="float", unit="in"),
+                      ColumnDef("raised_face_dia", type="float", unit="in"),
+                      ColumnDef("hole_count", type="int"),
+                      ColumnDef("bolt_dia", type="float", unit="in"),
+                      ColumnDef("bolt_circle_dia", type="float", unit="in"),
+                      ColumnDef("weight_kg", type="float", unit="kg"),
+                  ])],
+))
+LEAVES.append(LeafSchema(
+    leaf_id="ansi_150lb_slip_on", name="ANSI 150LB Slip-On Flanges (ANSI B16.5)",
+    pages=[190],
+    page_groups=[PageGroup(pages=[190], skip_header_rows=6,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=SECTION_FLANGE_NOM,
+                  value_count=10, max_data_rows=20,
+                  columns=[
+                      ColumnDef("flange_od", type="float", unit="in"),
+                      ColumnDef("thickness", type="float", unit="in"),
+                      ColumnDef("raised_face_dia", type="float", unit="in"),
+                      ColumnDef("hub_dia", type="float", unit="in"),
+                      ColumnDef("hub_length", type="float", unit="in"),
+                      ColumnDef("bore_dia", type="float", unit="in"),
+                      ColumnDef("hole_count", type="int"),
+                      ColumnDef("bolt_dia", type="float", unit="in"),
+                      ColumnDef("bolt_circle_dia", type="float", unit="in"),
+                      ColumnDef("weight_kg", type="float", unit="kg"),
+                  ])],
+))
+LEAVES.append(LeafSchema(
+    leaf_id="ansi_300lb_slip_on", name="ANSI 300LB Slip-On Flanges (ANSI B16.5)",
+    pages=[190],
+    page_groups=[PageGroup(pages=[190], skip_header_rows=31,
+                  footer_pattern=FOOTER_PATTERN,
+                  section_pattern=SECTION_FLANGE_NOM,
+                  value_count=10,
+                  columns=[
+                      ColumnDef("flange_od", type="float", unit="in"),
+                      ColumnDef("thickness", type="float", unit="in"),
+                      ColumnDef("raised_face_dia", type="float", unit="in"),
+                      ColumnDef("hub_dia", type="float", unit="in"),
+                      ColumnDef("hub_length", type="float", unit="in"),
+                      ColumnDef("bore_dia", type="float", unit="in"),
+                      ColumnDef("hole_count", type="int"),
+                      ColumnDef("bolt_dia", type="float", unit="in"),
+                      ColumnDef("bolt_circle_dia", type="float", unit="in"),
+                      ColumnDef("weight_kg", type="float", unit="kg"),
+                  ])],
+))
+# Rest of flanges: skip for now
 for leaf_id, leaf_pages in [
-    ("jis_5k", [188]), ("jis_10k", [188]),
-    ("ansi_150lb_blind", [189]), ("ansi_300lb_blind", [189]),
-    ("ansi_150lb_slip_on", [190]), ("ansi_300lb_slip_on", [190]),
     ("ansi_150lb_welding_neck", [191]), ("ansi_300lb_welding_neck", [191]),
     ("ansi_class_600", [192]), ("ansi_class_900", [192]), ("ansi_class_1500", [193]),
     ("bs_slip_on_pn_6", [194]), ("bs_slip_on_pn_10", [194]),

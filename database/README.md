@@ -53,6 +53,73 @@ database/
 └── html_output/                    Generated HTML pages
 ```
 
+### `firestore_organized/` — Category Tree
+
+```
+firestore_organized/
+├── api_pipes.ndjson
+├── hot_formed_hollow_sections.ndjson
+├── gauge_table.ndjson
+├── i_beams/
+│   ├── safe_loads/
+│   │   ├── slenderness_and_geometry_ratio_allowable_stress.ndjson
+│   │   ├── stanchios_and_struts_allowable_stress.ndjson
+│   │   └── safe_loads_for_grade_43_steel.ndjson
+│   └── Dimensions_and_values/
+│       ├── universal_beams_and_columns.ndjson
+│       ├── light_beam_and_joist.ndjson
+│       └── bearing_pile.ndjson
+├── steel_piles/
+│   ├── frodingham_steel_sheet_piling.ndjson
+│   ├── larssen_steel_sheet_piling.ndjson
+│   └── dimensions_and_properties/
+│       ├── u_type.ndjson
+│       └── z_type.ndjson
+├── cold_formed_hollow_sections/
+│   ├── square_metric.ndjson
+│   ├── rectangular_metric.ndjson
+│   ├── square_imperial.ndjson
+│   └── rectangular_imperial.ndjson
+├── pipes/
+│   ├── bs_welded_steel_pipes.ndjson
+│   ├── carbon_steel_for_general_structural.ndjson
+│   ├── carbon_steel_for_scaffolding.ndjson
+│   └── carbon_steel_for_ordinary_piping.ndjson
+├── channels/
+│   ├── plain_channels.ndjson
+│   ├── lipped_channels.ndjson
+│   ├── din_1026_channels.ndjson
+│   ├── u_channels.ndjson
+│   └── inch_series.ndjson
+├── z_purlins/
+│   └── z_purlins_high_tensile_galvanised.ndjson
+├── c_purlins/
+│   └── c_purlins_high_tensile_galvanised.ndjson
+├── angles/
+│   ├── equal_angles.ndjson
+│   └── unequal_angles.ndjson
+├── bars/
+│   ├── flat_bars.ndjson
+│   ├── bulb_flats.ndjson
+│   └── square_deformed_and_round_bars.ndjson
+├── plates/
+│   ├── chequered_plates.ndjson
+│   └── galvanised_steel_sheets_dimensions.ndjson
+├── stainless_steel_products/
+│   ├── round_bars_stainless.ndjson
+│   ├── welded_channels_stainless.ndjson
+│   └── sheets_plates_weights.ndjson
+├── machinery_steel_products/
+│   ├── carbon_steel_machinery.ndjson
+│   ├── chromium_and_crmo_steels.ndjson
+│   ├── nickel_chromium_steels.ndjson
+│   └── cold_finished_free_cutting_steel.ndjson
+└── non_ferrous_metals/
+    ├── copper_round_hex_square_bars.ndjson
+    ├── brass_round_hex_square_bars.ndjson
+    └── brass_sheets.ndjson
+```
+
 
 ## Schema-Driven Parsing
 
@@ -218,7 +285,7 @@ firestore_organized/
 └── ...
 ```
 
-`gauge_table.ndjson` is placed at the root — it is a cross-cutting reference table not tied to a specific product category.
+Files whose leaf category is a single entry (`api_pipes`, `hot_formed_hollow_sections`, `gauge_table`) are placed at the root — they are top-level product groups with no further sub-categorization.
 
 ## Requirements
 

@@ -16,6 +16,48 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 INPUT_PATH = os.path.join(SCRIPT_DIR, "raw_handbook.json")
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "firestore_export")
 
+VULGAR_FRACTIONS = {
+    "\u00bc": "1/4",
+    "\u00bd": "1/2",
+    "\u00be": "3/4",
+    "\u215b": "1/8",
+    "\u215c": "3/8",
+    "\u215d": "5/8",
+    "\u215e": "7/8",
+    "\u2153": "1/3",
+    "\u2154": "2/3",
+}
+
+def normalize_fractions(val):
+    for uchar, ascii_frac in VULGAR_FRACTIONS.items():
+        val = re.sub(r'(\d)' + re.escape(uchar), r'\1-' + ascii_frac, val)
+        val = val.replace(uchar, ascii_frac)
+    return val
+
+
+def _disambiguate_concatenated_fracs(val):
+    """Convert concatenated mixed fractions like '131/2' -> '13-1/2'.
+    Heuristic: for denom 2/4/8 use longest stem; for denom 16+ use shortest stem."""
+    def _split_frac(m):
+        num_str, den_str = m.group(1), m.group(2)
+        if len(num_str) < 3:
+            return m.group(0)
+        den = int(den_str)
+        if den in (2, 4, 8):
+            for i in range(len(num_str) - 1, 0, -1):
+                stem = num_str[:i]
+                suffix = num_str[i:]
+                if int(suffix) < den:
+                    return f"{stem}-{suffix}/{den}"
+        else:
+            for i in range(1, len(num_str)):
+                stem = num_str[:i]
+                suffix = num_str[i:]
+                if int(suffix) < den:
+                    return f"{stem}-{suffix}/{den}"
+        return m.group(0)
+    return re.sub(r'(\d+)/(\d+)', _split_frac, val)
+
 
 def load_raw_data(path):
     with open(path, "r", encoding="utf-8") as f:
@@ -27,6 +69,8 @@ def parse_numeric(val):
     has_asterisk = val.endswith("*")
     if has_asterisk:
         val = val.rstrip("*")
+    val = normalize_fractions(val)
+    val = _disambiguate_concatenated_fracs(val)
     val = val.lstrip("'‘’").rstrip("'‘’")
     val = val.replace("\u00b1", "").replace("\u2020", "").replace("\u2021", "")
     val = val.replace("†", "").replace("‡", "")
@@ -47,6 +91,16 @@ def parse_numeric(val):
 
 def parse_fraction(val):
     val = val.strip().replace(" ", "")
+    # Mixed number without separator: "11/4" → 1 + 1/4 (when 11 >= 4)
+    m = re.match(r'^(\d)(\d+)/(\d+)$', val)
+    if m:
+        combined = int(m.group(1) + m.group(2))
+        denom = int(m.group(3))
+        if combined >= denom:
+            try:
+                return float(m.group(1)) + float(m.group(2)) / denom
+            except (ValueError, ZeroDivisionError):
+                return None
     m = re.match(r'^(\d+)/(\d+)$', val)
     if m:
         try:
@@ -109,7 +163,7 @@ def row_is_footer(row_cells, pg):
 def extract_section_name(line, pg):
     m = re.match(pg.section_pattern, line)
     if m:
-        return m.group(1).strip()
+        return normalize_fractions(m.group(1).strip())
     return None
 
 
@@ -119,6 +173,7 @@ def row_is_header(rownum, pg):
 
 def slugify(name):
     s = name.lower().strip()
+    s = s.replace("/", "_")
     s = re.sub(r"[^\w\s-]", "", s)
     s = re.sub(r"[\s_]+", "_", s)
     s = s.strip("_")
@@ -161,6 +216,7 @@ def parse_row_token(row_cells, pg, previous_section):
     if not line:
         return None, previous_section
 
+    line = normalize_fractions(line)
     section = extract_section_name(line, pg)
     if section:
         rest = line[len(section):].strip()
@@ -170,7 +226,7 @@ def parse_row_token(row_cells, pg, previous_section):
     else:
         return None, previous_section
 
-    rest = re.sub(r'(\d+\.\d{3})(?=\d)', r'\1 ', rest)
+    rest = re.sub(r'(\d+\.\d{3})(?=\d{2,})', r'\1 ', rest)
     tokens = rest.split()
 
     doc = build_doc_from_tokens(tokens, previous_section, pg)
@@ -358,8 +414,8 @@ def process_grid_page(rows, pg, page_num):
         if len(tokens) < col_count:
             continue
         doc = OrderedDict()
-        doc["section"] = previous_section
-        doc["_section_slug"] = slugify(previous_section)
+        doc["section"] = normalize_fractions(previous_section)
+        doc["_section_slug"] = slugify(doc["section"])
         doc["page"] = page_num
         for j in range(col_count):
             raw = tokens[j] if j < len(tokens) else ""
@@ -780,6 +836,9 @@ def process_leaf(leaf, raw_pages_by_num):
         page_docs = process_page(page_data, pg)
 
         for doc in page_docs:
+            if pg.section_suffix:
+                doc["section"] = doc["section"] + pg.section_suffix
+                doc["_section_slug"] = slugify(doc["section"])
             section_key = doc["section"]
             if section_key not in docs_by_key:
                 docs_by_key[section_key] = []

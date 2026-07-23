@@ -817,13 +817,31 @@ PLATES (pages 158-176)
     astm                         str   
     bs                           str   
 
-⏭️ weight_tables_plates  (p168, 169)
-  Description: Plates Weight Tables
-  Note: Matrix weight table — imperial (p168) + metric (p169)
-  Planned output fields:
-    section                      num    (mm)
-    unit_weight                  num    (kg/m²)
-    wt_size_*                    num    (kg)
+✅ weight_tables_plates  (p168, 169)
+  Description: Steel Plates Weight Table — Imperial and Metric
+  Output fields:
+    thickness_mm                 num    (mm)
+    unit_weight_kg_ft2           num    (kg/ft²)
+    wt_4x8                       num   
+    wt_5x10                      num   
+    wt_5x20                      num   
+    wt_5x30                      num   
+    wt_6x20                      num   
+    wt_6x24                      num   
+    wt_6x30                      num   
+    wt_8x30                      num   
+    unit_weight_kg               num    (kg)
+    wt_3x6                       num   
+    wt_4x8                       num   
+    wt_4x10                      num   
+    wt_4x16                      num   
+    wt_4x20                      num   
+    wt_5x10                      num   
+    wt_5x20                      num   
+    wt_5x30                      num   
+    wt_5x40                      num   
+    wt_6x30                      num   
+    wt_6x40                      num   
 
 ⏭️ technical_reference_plates  (p170)
   Description: Technical Reference — Plates
@@ -863,10 +881,10 @@ PLATES (pages 158-176)
     weight_kg_pc                 num    (kg/pc)
     pcs_per_ton                  num   
 
-⏭️ electrolytic_galvanised  (p174)
-  Description: Electrolytic Galvanised Coils and Sheets
-  No tabular data — not parseable.
-  (Spec reference (KS/JIS/ASTM))
+✅ electrolytic_galvanised  (p174)
+  Description: Electrolytic Galvanised Coils and Sheets — Weight Table
+  Output fields:
+    weight_kg_sht                num   
 
 ⏭️ hot_dip_galvanised  (p175)
   Description: Hot Dip Galvanised Coils and Sheets
@@ -975,31 +993,33 @@ WROUGHT STEEL FITTINGS (pages 180-187)
 FLANGES (pages 188-205)
 ===============================================================================
 
-⏭️ jis_5k  (p188)
-  Description: JIS 5K Slip-On Flanges
-  Note: Fraction-based nominal sizes
-  Planned output fields:
-    section                      str   
-    od_mm                        num    (mm)
+✅ jis_5k  (p188)
+  Description: JIS 5K Slip-On Flanges (JIS B2220)
+  Output fields:
+    nominal_mm                   num    (mm)
+    pipe_od_mm                   num    (mm)
+    pipe_id_mm                   num    (mm)
+    flange_od_mm                 num    (mm)
     thickness_mm                 num    (mm)
     bolt_circle_mm               num    (mm)
-    bolt_holes                   num   
-    bolt_dia_mm                  num    (mm)
-    hub_dia_mm                   num    (mm)
-    hub_length_mm                num    (mm)
+    hole_count                   int   
+    hole_dia_mm                  num    (mm)
+    bolt_size                    string
+    weight_kg                    num    (kg)
 
-⏭️ jis_10k  (p188)
-  Description: JIS 10K Slip-On Flanges
-  Note: Fraction-based nominal sizes
-  Planned output fields:
-    section                      str   
-    od_mm                        num    (mm)
+✅ jis_10k  (p188)
+  Description: JIS 10K Slip-On Flanges (JIS B2220)
+  Output fields:
+    nominal_mm                   num    (mm)
+    pipe_od_mm                   num    (mm)
+    pipe_id_mm                   num    (mm)
+    flange_od_mm                 num    (mm)
     thickness_mm                 num    (mm)
     bolt_circle_mm               num    (mm)
-    bolt_holes                   num   
-    bolt_dia_mm                  num    (mm)
-    hub_dia_mm                   num    (mm)
-    hub_length_mm                num    (mm)
+    hole_count                   int   
+    hole_dia_mm                  num    (mm)
+    bolt_size                    string
+    weight_kg                    num    (kg)
 
 ⏭️ ansi_150lb_blind  (p189)
   Description: ANSI 150LB Blind Flanges

@@ -207,11 +207,7 @@ def make_sections():
          ("astm", "str", "", "ASTM standard designation"),
          ("bs", "str", "", "BS standard designation")],
         "Spec reference tables (KS/JIS/ASTM/BS)")
-    plan("weight_tables_plates", [168, 169], "Plates Weight Tables",
-        [("section", "num", "mm", "Thickness"),
-         ("unit_weight", "num", "kg/m²", "Unit weight"),
-         ("wt_size_*", "num", "kg", "Weight per sheet size")],
-        "Matrix weight table — imperial (p168) + metric (p169)")
+    auto(["weight_tables_plates"])
     nodata("technical_reference_plates", [170],
         "Technical Reference — Plates", "Chem comp + mech properties reference")
     auto(["chequered_plates"])
@@ -223,8 +219,7 @@ def make_sections():
          ("weight_kg_pc", "num", "kg/pc", "Weight per piece (kg)"),
          ("pcs_per_ton", "num", "", "Pieces per metric ton")],
         "Gauge/thickness/weight table with continuation rows")
-    nodata("electrolytic_galvanised", [174],
-        "Electrolytic Galvanised Coils and Sheets", "Spec reference (KS/JIS/ASTM)")
+    auto(["electrolytic_galvanised"])
     nodata("hot_dip_galvanised", [175],
         "Hot Dip Galvanised Coils and Sheets", "Spec reference (KS/JIS/ASTM/BS)")
     auto(["galvanised_steel_sheets_dimensions"])
@@ -297,12 +292,10 @@ def make_sections():
         ("hub_dia_mm", "num", "mm", "Hub diameter (welding neck)"),
         ("hub_length_mm", "num", "mm", "Hub length"),
     ]
+    auto(["jis_5k", "jis_10k", "ansi_150lb_blind", "ansi_300lb_blind",
+          "ansi_150lb_slip_on", "ansi_300lb_slip_on"])
     for lid, lname, lpages in [
-        ("jis_5k", "JIS 5K Slip-On Flanges", [188]),
-        ("jis_10k", "JIS 10K Slip-On Flanges", [188]),
-        ("ansi_150lb_blind", "ANSI 150LB Blind Flanges", [189]),
-        ("ansi_300lb_blind", "ANSI 300LB Blind Flanges", [189]),
-        ("ansi_150lb_slip_on", "ANSI 150LB Slip-On Flanges", [190]),
+        ("ansi_150lb_welding_neck", "ANSI 150LB Welding Neck Flanges", [191]),
         ("ansi_300lb_slip_on", "ANSI 300LB Slip-On Flanges", [190]),
         ("ansi_150lb_welding_neck", "ANSI 150LB Welding Neck Flanges", [191]),
         ("ansi_300lb_welding_neck", "ANSI 300LB Welding Neck Flanges", [191]),

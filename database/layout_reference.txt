@@ -10,7 +10,7 @@ Legend:
   ✅ ACTIVE  = Has working PageGroup(s), produces NDJSON output
   ⏭️  SKIP   = No tabular data or too complex for current parser
 
-Active leaves: 45  |  Skipped leaves: 88  |  Total pages covered: 95/267
+Active leaves: 49  |  Skipped leaves: 84  |  Total pages covered: 99/267
 
 ===============================================================================
 I-BEAMS (pages 14-55)
@@ -132,11 +132,11 @@ PLATES (pages 158-176)
 
   product_list                                              158  ⏭️  TOC
   specifications                                       159-167  ⏭️  Spec reference tables
-  weight_tables                                        168-169  ⏭️  Weight table matrix
+✅ weight_tables                                        168-169  83 docs
   technical_reference                                       170  ⏭️  Reference text
 ✅ chequered_plates                                          171  18 docs
   cold_rolled_coils_and_sheets                         172-173  ⏭️  Specs
-  electrolytic_galvanised                                   174  ⏭️  Specs
+✅ electrolytic_galvanised                                   174  26 docs
   hot_dip_galvanised                                        175  ⏭️  Specs
 ✅ galvanised_steel_sheets_dimensions                        176  32 docs
 
@@ -163,7 +163,7 @@ WROUGHT STEEL FITTINGS (pages 180-187)
 FLANGES (pages 188-205)
 ===============================================================================
 
-  jis_5k, jis_10k                                          188  ⏭️  Flange dimensions (fraction-based, complex)
+✅ jis_5k, jis_10k                                          188  21 + 21 docs
   ansi_150lb_blind, ansi_300lb_blind                       189  ⏭️  Flange dimensions
   ansi_150lb_slip_on, ansi_300lb_slip_on                   190  ⏭️  Flange dimensions
   ansi_150lb_welding_neck, ansi_300lb_welding_neck         191  ⏭️  Flange dimensions
