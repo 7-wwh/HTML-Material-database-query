@@ -30,18 +30,139 @@ YH_HandBook_unrestricted.pdf
 
 ## Schema-Driven Parsing
 
-Rather than storing raw page grids, the pipeline decomposes each table into per-row documents using a schema definition in `schemas.py`. Each schema describes:
+Rather than storing raw page grids, the pipeline decomposes each table into per-row documents. Two files work together:
 
-- **Pages** — which handbook page(s) the schema applies to
-- **Section pattern** — a regex that identifies the start of a new data row (the "section name") from the joined cell text
-- **Skip header rows** — how many rows at the top of the page are headers
-- **Footer pattern** — a regex that marks a row as footer (skipped)
-- **Columns** — an ordered list of typed fields (name + unit)
-- **`value_count`** — the expected number of space-delimited tokens after the section name
+- **`schemas.py`** — defines 39 `TableSchema` objects, one per table type (e.g. universal beam dimensions, pipe specs, channel properties)
+- **`parse_tables.py`** — applies the schemas: reads `raw_handbook.json`, matches each page to its schema, extracts rows, and writes NDJSON
 
-A row is parsed by extracting the section name via the section pattern, splitting the remainder into `value_count` tokens, and mapping them positionally to the column definitions. Continuation rows (rows without a section name) use the previous row's section.
+### `TableSchema` fields
 
-39 schemas cover the full handbook, producing **~2000 documents** total.
+| Field | Purpose | Example |
+|---|---|---|
+| `page_type` | Unique key and output filename | `"cs_pipe_sgp"` |
+| `pages` | Which handbook page(s) this schema applies to | `[122]` |
+| `section_pattern` | Regex extracting the row identifier from the joined cell text | `r"^(\d+(?:[¼½¾⅛])?)\s*"` |
+| `skip_header_rows` | Number of leading rows to ignore (multi-level table headers) | `5` |
+| `footer_pattern` | Regex — any row with a matching cell is skipped | `r"YICK HOE\|Tolerance"` |
+| `value_count` | How many space-delimited tokens to expect per row | `8` |
+| `columns` | Ordered list of `ColumnDef(name, type, unit)` | see below |
+
+`value_count` must equal `len(columns)`. A mismatch drops or misaligns fields.
+
+### How the parser works (`process_page` → `parse_row`)
+
+For each page, the parser iterates over every row and calls `parse_row`, which runs this sequence:
+
+```
+1. Footer check?           row matches footer_pattern → skip
+2. Join cells:             " ".join(cells) → one string
+3. Extract section:        match section_pattern against joined string
+   └─ matched?             → extract section name, rest = remaining text
+   └─ not matched +        → section = previous_section, rest = full line
+      previous_section set    (continuation row — no section name needed)
+   └─ not matched + no        → skip (can't identify this row)
+      previous_section
+4. Fix merged decimals:    re.sub(r'\d\.\d{3}(?=\d)') → insert space
+5. Split tokens:           rest.split() → list of strings
+6. Validate token count:   len(tokens) < value_count → skip
+7. Map to columns:         tokens[:value_count] → positional column mapping
+8. Parse numerics:         "float" columns → parse_numeric(value)
+9. Emit document:          {"section": "...", "od_mm": 10.5, ...}
+```
+
+`parse_numeric` handles three tricky formats that appear in the raw data:
+
+- **European decimal comma** — `4,5` → `4.5`. A comma with 1–4 trailing digits is treated as decimal separator; other commas (thousands separators) are stripped.
+- **Tolerance markers** — `±1,5` → `1.5`. The `±` character and trailing `*` are stripped before conversion.
+- **Placeholder values** — `--` fails `float()` and is returned as-is (the string `"--"`).
+
+### Step-by-step example
+
+Schema `cs_pipe_sgp` targets page 122. Raw row 5 from the PDF extraction:
+
+```
+cells = ["6", "1/8", "10.5 0.413 2.0 0.079 0.282 0.419 25 360"]
+```
+
+The parser joins the cells:
+
+```
+"6 1/8 10.5 0.413 2.0 0.079 0.282 0.419 25 360"
+```
+
+The section pattern `^(\d+(?:\s+(?:\d*[¼½¾⅛]|\d+/\d+|\d+))?)` matches `"6 1/8"` — a nominal-mm/inch pair with a slash fraction. The rest is:
+
+```
+"10.5 0.413 2.0 0.079 0.282 0.419 25 360"
+```
+
+8 tokens, mapping to the 8 `ColumnDef`s:
+
+| Index | Column | Value |
+|---|---|---|
+| 0 | `od_mm` | `10.5` |
+| 1 | `od_in` | `0.413` |
+| 2 | `wall_mm` | `2.0` |
+| 3 | `wall_in` | `0.079` |
+| 4 | `weight_lb_ft` | `0.282` |
+| 5 | `weight_kg_m` | `0.419` |
+| 6 | `test_pressure_kg` | `25` |
+| 7 | `test_pressure_psi` | `360` |
+
+Final document:
+
+```json
+{"section": "6 1/8", "_section_slug": "6_18", "od_mm": 10.5, "od_in": 0.413,
+ "wall_mm": 2.0, "wall_in": 0.079, "weight_lb_ft": 0.282, "weight_kg_m": 0.419,
+ "test_pressure_kg": 25.0, "test_pressure_psi": 360.0, "page": 122}
+```
+
+### Continuation rows
+
+Many handbook tables split a single section across two rows. The first row has the section name; the second contains additional metric/imperial pairs. For example, DIN channel page 130:
+
+```
+Row 7:  "30 x 15  30 15 4 4.5 4.5 2 2.21 1.74 ..."  ← section="30 x 15"
+Row 8:  "30 30 33 5 7 7 3.5 5.44 4.27 0.174 ..."    ← no section, continues row 7
+```
+
+Row 8 has no `"x"` in its joined text, so `section_pattern` returns no match. But `previous_section` is `"30 x 15"` (set by row 7), so the parser treats it as a continuation: the full line becomes the rest value, is split into tokens, and mapped to the same 19 columns.
+
+### Schema diversity
+
+Schemas vary widely to match the handbook's heterogeneous tables:
+
+| Schema | Section pattern | Matches | `value_count` |
+|---|---|---|---|
+| `beam_dimensions` | `W\d+\s+\d+(?:\s*x\s*\d+(?:/\d+)?)?` | `W4 4 x 4 (102 x 102)` | 14 |
+| `din_channel` | `\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?` | `30 x 15`, `50 x 25` | 19 |
+| `cs_pipe_light_aa` | `(?:\d*[¼½¾⅛]|\d+(?:/\d+)?)` | `½`, `1¼`, `2½`, `5` | 8 |
+| `cs_pipe_sgp` | `\d+(?:\s+(?:[¼½¾⅛]|\d+/\d+|\d+))?` | `6 1/8`, `8 ¼`, `10 3/8`, `25 1` | 8 |
+| `u_channel_inch` | `C\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?` | `C3 x 4.1`, `C12 x 20.7` | 12 |
+| `z_purlin` | `SZ \d+-\d+` | `SZ 100-16`, `SZ 250-25` | 7 |
+| `c_purlin` | `SC\d+-\d+` | `SC100-16`, `SC200-25` | 6 |
+| `cs_pipe_stk` | `\d{2,}(?:\.\d+)?` | `21.7`, `114.3`, `216.3` | 6 |
+
+Note the `cs_pipe_stk` pattern requires **two or more leading digits** (`\d{2,}`). This prevents wall-thickness continuation rows like `2.3` from being falsely matched as new sections.
+
+### Page-to-schema routing
+
+`get_schema_for_page(page_num)` scans `ALL_SCHEMAS` (a flat list) and returns the first schema whose `pages` list includes the page number. If multiple schemas target the same page, only the first match is used. Each page should be claimed by exactly one schema.
+
+The `process_all_pages` function iterates every page in `raw_handbook.json`, routes it, and collects all documents by `page_type`:
+
+```python
+for page_data in raw_data["tables"]:
+    schema = get_schema_for_page(page_data["page"])
+    if schema is None:
+        continue
+    docs = process_page(page_data, schema)
+    docs_by_group.setdefault(schema.page_type, []).extend(docs)
+```
+
+### Output
+
+Each schema produces an NDJSON file at `firestore_export/<page_type>.ndjson`. Every line is a complete document with typed fields, ready for Firestore upload. 39 schemas produce **~2000 documents** total.
 
 ## Requirements
 
